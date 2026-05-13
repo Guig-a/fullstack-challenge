@@ -1,0 +1,6 @@
+{
+  "name": "@crash/contracts",
+  "version": "0.0.1",
+  "main": "index.ts",
+  "private": true
+}
