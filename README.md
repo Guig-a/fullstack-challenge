@@ -99,6 +99,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Game consome os eventos de resultado da Wallet para fechar a comunicação bidirecional entre serviços; a saga compensatória completa para rejeições fica como próxima evolução.
 - Adicionados testes unitários para os handlers de débito/crédito da Wallet e para a publicação de pedidos de Wallet pelos comandos do Game.
 
+#### `feat(games): compensate rejected wallet debits`
+
+- Estendido `wallet.operation.rejected` com a operação original (`DEBIT` ou `CREDIT`) para permitir compensações específicas no Game.
+- Adicionado o estado `rejected` em `Bet` para representar apostas recusadas pela Wallet, como saldo insuficiente ou carteira inexistente.
+- Game compensa rejeições de débito marcando a aposta como rejeitada e persistindo o agregado `Round`, liberando o jogador para tentar nova aposta durante a fase de apostas.
+- Rejeições de crédito são consumidas e preservadas para tratamento operacional futuro, sem reverter cashout já registrado no Game.
+- Adicionados testes unitários para compensação de débito rejeitado, nova aposta após rejeição e preservação do fluxo de crédito rejeitado.
+
 ### Validação Atual
 
 ```bash

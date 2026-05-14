@@ -119,6 +119,12 @@ export class Bet {
     this.props.settledAt = settledAt;
   }
 
+  reject(settledAt: Date): void {
+    this.assertPending();
+    this.props.status = "rejected";
+    this.props.settledAt = settledAt;
+  }
+
   toSnapshot(): BetSnapshot {
     return {
       id: this.id,

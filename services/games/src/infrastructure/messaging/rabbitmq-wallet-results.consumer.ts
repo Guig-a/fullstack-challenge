@@ -9,6 +9,7 @@ import {
 } from "@crash/contracts";
 import amqp from "amqplib";
 import type { Channel, ChannelModel, ConsumeMessage } from "amqplib";
+import { HandleWalletOperationRejectedHandler } from "../../application/use-cases/handle-wallet-operation-rejected.handler";
 
 type WalletResultEvent = WalletDebited | WalletCredited | WalletOperationRejected;
 
@@ -17,6 +18,8 @@ export class RabbitmqWalletResultsConsumer implements OnModuleInit, OnModuleDest
   private readonly logger = new Logger(RabbitmqWalletResultsConsumer.name);
   private connection?: ChannelModel;
   private channel?: Channel;
+
+  constructor(private readonly handleWalletOperationRejected: HandleWalletOperationRejectedHandler) {}
 
   async onModuleInit(): Promise<void> {
     const rabbitmqUrl = process.env.RABBITMQ_URL;
@@ -38,7 +41,7 @@ export class RabbitmqWalletResultsConsumer implements OnModuleInit, OnModuleDest
       await this.channel.bindQueue(WALLET_EVENT_QUEUES.gameWalletResults, WALLET_EVENTS_EXCHANGE, routingKey);
     }
 
-    await this.channel.consume(WALLET_EVENT_QUEUES.gameWalletResults, (message) => this.handleMessage(message), {
+    await this.channel.consume(WALLET_EVENT_QUEUES.gameWalletResults, (message) => void this.handleMessage(message), {
       noAck: false,
     });
   }
@@ -48,13 +51,20 @@ export class RabbitmqWalletResultsConsumer implements OnModuleInit, OnModuleDest
     await this.connection?.close();
   }
 
-  private handleMessage(message: ConsumeMessage | null): void {
+  private async handleMessage(message: ConsumeMessage | null): Promise<void> {
     if (!message || !this.channel) {
       return;
     }
 
     try {
       const event = JSON.parse(message.content.toString()) as WalletResultEvent;
+
+      if (event.type === WALLET_EVENT_ROUTING_KEYS.operationRejected) {
+        await this.handleWalletOperationRejected.execute({
+          ...event.payload,
+          rejectedAt: new Date(event.occurredAt),
+        });
+      }
 
       this.logger.log(`Wallet result received: ${event.type} for bet ${event.payload.betId}`);
       this.channel.ack(message);

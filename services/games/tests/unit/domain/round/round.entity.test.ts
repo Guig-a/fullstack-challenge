@@ -69,6 +69,19 @@ describe("Round", () => {
     expect(() => round.placeBet("player-id", BetAmount.fromCents(2_000n), createdAt)).toThrow(DuplicateBetError);
   });
 
+  it("marks a bet as rejected and allows a new bet from the same player", () => {
+    const round = createRound();
+    const rejectedBet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+
+    round.rejectBet(rejectedBet.id, settledAt);
+    const replacementBet = round.placeBet("player-id", BetAmount.fromCents(2_000n), settledAt);
+
+    expect(rejectedBet.status).toBe("rejected");
+    expect(rejectedBet.settledAt).toBe(settledAt);
+    expect(replacementBet.status).toBe("placed");
+    expect(round.bets).toHaveLength(2);
+  });
+
   it("transitions from betting to running", () => {
     const round = createRound();
 

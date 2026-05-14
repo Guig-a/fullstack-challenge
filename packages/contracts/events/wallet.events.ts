@@ -63,6 +63,7 @@ export type WalletOperationRejected = EventEnvelope<
     walletUserId: string;
     roundId: string;
     betId: string;
+    operation: "DEBIT" | "CREDIT";
     reason: "INSUFFICIENT_FUNDS" | "WALLET_NOT_FOUND" | "DUPLICATED_OPERATION";
   }
 >;

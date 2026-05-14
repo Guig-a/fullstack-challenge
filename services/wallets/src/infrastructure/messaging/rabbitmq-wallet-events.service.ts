@@ -101,7 +101,7 @@ export class RabbitmqWalletEventsService implements OnModuleInit, OnModuleDestro
         }),
       } satisfies WalletDebited);
     } catch (error) {
-      this.publishRejected(event, this.toRejectionReason(error));
+      this.publishRejected(event, "DEBIT", this.toRejectionReason(error));
     }
   }
 
@@ -122,12 +122,13 @@ export class RabbitmqWalletEventsService implements OnModuleInit, OnModuleDestro
         }),
       } satisfies WalletCredited);
     } catch (error) {
-      this.publishRejected(event, this.toRejectionReason(error));
+      this.publishRejected(event, "CREDIT", this.toRejectionReason(error));
     }
   }
 
   private publishRejected(
     event: WalletRequestEvent,
+    operation: WalletOperationRejected["payload"]["operation"],
     reason: WalletOperationRejected["payload"]["reason"],
   ): void {
     this.publish(WALLET_EVENT_ROUTING_KEYS.operationRejected, {
@@ -135,6 +136,7 @@ export class RabbitmqWalletEventsService implements OnModuleInit, OnModuleDestro
         walletUserId: event.payload.walletUserId,
         roundId: event.payload.roundId,
         betId: event.payload.betId,
+        operation,
         reason,
       }),
     } satisfies WalletOperationRejected);

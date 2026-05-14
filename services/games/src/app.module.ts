@@ -7,6 +7,7 @@ import { CashOutBetHandler } from "./application/use-cases/cash-out-bet.handler"
 import { GetCurrentRoundHandler } from "./application/use-cases/get-current-round.handler";
 import { GetRoundHistoryHandler } from "./application/use-cases/get-round-history.handler";
 import { GetRoundVerificationHandler } from "./application/use-cases/get-round-verification.handler";
+import { HandleWalletOperationRejectedHandler } from "./application/use-cases/handle-wallet-operation-rejected.handler";
 import { PlaceBetHandler } from "./application/use-cases/place-bet.handler";
 import { JwtAuthGuard } from "./infrastructure/auth/jwt-auth.guard";
 import { RabbitmqWalletEventsPublisher } from "./infrastructure/messaging/rabbitmq-wallet-events.publisher";
@@ -28,6 +29,7 @@ import { GamesController } from "./presentation/controllers/games.controller";
     GetCurrentRoundHandler,
     GetRoundHistoryHandler,
     GetRoundVerificationHandler,
+    HandleWalletOperationRejectedHandler,
     PlaceBetHandler,
     CashOutBetHandler,
     JwtAuthGuard,

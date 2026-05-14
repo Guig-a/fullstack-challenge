@@ -108,7 +108,7 @@ export class Round {
   placeBet(userId: string, amount: BetAmount, placedAt: Date): Bet {
     this.assertBetting();
 
-    if (this.findBetByUserId(userId)) {
+    if (this.findNonRejectedBetByUserId(userId)) {
       throw new DuplicateBetError();
     }
 
@@ -151,6 +151,18 @@ export class Round {
     return bet;
   }
 
+  rejectBet(betId: string, rejectedAt: Date): Bet {
+    const bet = this.findBetById(betId);
+
+    if (!bet) {
+      throw new BetNotFoundError();
+    }
+
+    bet.reject(rejectedAt);
+
+    return bet;
+  }
+
   crash(crashedAt: Date): void {
     if (this.status === "crashed") {
       throw new RoundAlreadyCrashedError();
@@ -185,6 +197,14 @@ export class Round {
 
   private findBetByUserId(userId: string): Bet | undefined {
     return this.props.bets.find((bet) => bet.userId === userId);
+  }
+
+  private findBetById(betId: string): Bet | undefined {
+    return this.props.bets.find((bet) => bet.id === betId);
+  }
+
+  private findNonRejectedBetByUserId(userId: string): Bet | undefined {
+    return this.props.bets.find((bet) => bet.userId === userId && bet.status !== "rejected");
   }
 
   private assertBetting(): void {
