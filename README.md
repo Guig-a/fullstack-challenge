@@ -10,6 +10,56 @@ Não esperamos perfeição — esperamos raciocínio claro, código limpo e deci
 
 ---
 
+## Implementação do Candidato
+
+Esta seção registra as decisões tomadas durante a implementação. A ideia é manter um histórico curto por etapa, sempre conectado aos critérios de avaliação: DDD/arquitetura, qualidade de código, testes, precisão monetária e execução via Docker.
+
+### Progresso por Commit
+
+#### `chore: initialize monorepo workspaces (frontend, packages/contracts)`
+
+- Inicializado o workspace `frontend` para corrigir o monorepo Bun e permitir `bun install` na raiz.
+- Criado o pacote compartilhado `@crash/contracts`, que será usado para centralizar contratos de eventos entre serviços e reduzir divergência entre Game e Wallet.
+- Gerado `bun.lock` para garantir instalação reproduzível.
+
+#### `fix: stabilize docker compose startup and healthchecks`
+
+- Ajustado o volume do PostgreSQL 18 para o layout recomendado pela imagem oficial.
+- Normalizado o script de inicialização do Postgres para LF e adicionado `.gitattributes` para evitar regressão em ambientes Windows.
+- Corrigidos healthchecks de Postgres, Keycloak, Game e Wallet para que `bun run docker:up` deixe todos os serviços saudáveis sem passo manual.
+
+#### `feat(wallets): implement wallet domain and authenticated API`
+
+- Implementado o bounded context Wallet com separação em camadas:
+  - `domain`: `Money`, `Wallet` e erros de domínio.
+  - `application`: casos de uso e porta de repositório.
+  - `infrastructure`: Prisma, PostgreSQL e validação JWT via Keycloak/JWKS.
+  - `presentation`: controllers HTTP e DTOs.
+- Valores monetários são manipulados em centavos inteiros (`bigint` no domínio TypeScript e `BIGINT` no PostgreSQL). A API serializa `balanceCents` como string para evitar perda de precisão em JSON.
+- Adicionadas migrations Prisma aplicadas automaticamente no startup do container do Wallet.
+- Implementadas rotas autenticadas:
+  - `POST /wallets`
+  - `GET /wallets/me`
+- Mantido `GET /wallets/health` sem autenticação para healthcheck.
+- Adicionados testes unitários de domínio para criação de carteira, crédito, débito, saldo insuficiente e precisão monetária.
+- Criados contratos iniciais em `@crash/contracts` para eventos futuros de débito/crédito via mensageria.
+
+### Validação Atual
+
+```bash
+bun run docker:up
+docker compose ps
+cd services/wallets && bun test tests/unit
+```
+
+Também foi validado manualmente o fluxo autenticado via Kong com token real do usuário `player` do Keycloak:
+
+- `POST http://localhost:8000/wallets`
+- `GET http://localhost:8000/wallets/me`
+
+
+---
+
 ## Visão Geral 📖
 
 Um **Crash Game** é um jogo de cassino multiplayer em tempo real: um multiplicador sobe a partir de `1.00x` e pode "crashar" a qualquer momento. Jogadores apostam antes da rodada e precisam sacar (cash out) antes do crash para garantir os ganhos — caso contrário, perdem a aposta.
