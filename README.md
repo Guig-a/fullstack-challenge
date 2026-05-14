@@ -67,6 +67,13 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Migrations e geração do Prisma Client foram integradas ao startup do container do Game, seguindo o padrão já usado no Wallet Service.
 - Adicionado teste unitário de reidratação de snapshots persistidos para proteger o contrato entre domínio e repositório.
 
+#### `feat(games): persist provably fair round proof`
+
+- Estendida a modelagem de `Round` para carregar os dados de prova provably fair da rodada.
+- Persistidos `serverSeedHash`, `clientSeed`, `nonce`, `hmac` e seed revelável para permitir verificação futura do crash point.
+- Atualizado o repositório Prisma para salvar e reidratar a prova junto com o agregado, mantendo o domínio desacoplado do ORM.
+- Adicionados testes unitários cobrindo snapshot e reidratação da prova.
+
 ### Validação Atual
 
 ```bash

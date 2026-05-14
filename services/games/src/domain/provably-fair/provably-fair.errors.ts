@@ -18,3 +18,10 @@ export class InvalidNonceError extends Error {
     this.name = "InvalidNonceError";
   }
 }
+
+export class InvalidRoundProofError extends Error {
+  constructor() {
+    super("Round proof is invalid.");
+    this.name = "InvalidRoundProofError";
+  }
+}

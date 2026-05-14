@@ -2,6 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { BetAmount } from "../../../../src/domain/money/bet-amount.vo";
 import { CrashPoint } from "../../../../src/domain/multiplier/crash-point.vo";
 import { Multiplier } from "../../../../src/domain/multiplier/multiplier.vo";
+import { CrashSeed } from "../../../../src/domain/provably-fair/crash-seed.vo";
+import { RoundProof } from "../../../../src/domain/provably-fair/round-proof.vo";
+import { SeedHash } from "../../../../src/domain/provably-fair/seed-hash.vo";
 import { Round } from "../../../../src/domain/round/round.entity";
 import {
   BetAlreadySettledError,
@@ -18,11 +21,19 @@ describe("Round", () => {
   const startedAt = new Date("2026-01-01T00:00:10.000Z");
   const settledAt = new Date("2026-01-01T00:00:12.000Z");
   const crashedAt = new Date("2026-01-01T00:00:15.000Z");
+  const proof = RoundProof.create({
+    serverSeedHash: SeedHash.fromHex("09d012319a4c4398fdc06a09296a127064401abefd0084e37622e48e28678825"),
+    serverSeed: CrashSeed.fromString("server-seed-alpha"),
+    clientSeed: CrashSeed.fromString("player-seed-alpha"),
+    nonce: 0n,
+    hmac: "057ce87fd5846bbe4e329c9d2402c6014100b7dad26282f960bd0e97a6a8485f",
+  });
 
   function createRound(): Round {
     return Round.create({
       id: "round-id",
       crashPoint: CrashPoint.fromBasisPoints(250n),
+      proof,
       now: createdAt,
     });
   }
@@ -33,6 +44,9 @@ describe("Round", () => {
     expect(round.id).toBe("round-id");
     expect(round.status).toBe("betting");
     expect(round.crashPoint.basisPoints).toBe(250n);
+    expect(round.proof.serverSeedHash.toString()).toBe(
+      "09d012319a4c4398fdc06a09296a127064401abefd0084e37622e48e28678825",
+    );
     expect(round.bets).toHaveLength(0);
     expect(round.createdAt).toBe(createdAt);
   });
@@ -182,6 +196,10 @@ describe("Round", () => {
     const rehydratedBets = rehydratedRound.bets;
 
     expect(rehydratedRound.toSnapshot()).toEqual(round.toSnapshot());
+    expect(rehydratedRound.proof.serverSeed?.toString()).toBe("server-seed-alpha");
+    expect(rehydratedRound.proof.clientSeed.toString()).toBe("player-seed-alpha");
+    expect(rehydratedRound.proof.nonce).toBe(0n);
+    expect(rehydratedRound.proof.hmac).toBe("057ce87fd5846bbe4e329c9d2402c6014100b7dad26282f960bd0e97a6a8485f");
     expect(rehydratedBets.find((bet) => bet.userId === "lost-player")?.status).toBe("lost");
     expect(rehydratedBets.find((bet) => bet.userId === "cashout-player")?.payoutCents).toBe(3_000n);
   });

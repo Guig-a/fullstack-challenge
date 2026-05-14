@@ -1,6 +1,8 @@
 import { BetAmount } from "../money/bet-amount.vo";
 import { CrashPoint } from "../multiplier/crash-point.vo";
 import { Multiplier } from "../multiplier/multiplier.vo";
+import { RoundProof } from "../provably-fair/round-proof.vo";
+import type { RoundProofSnapshot } from "../provably-fair/round-proof.vo";
 import { Bet } from "./bet.entity";
 import type { BetSnapshot } from "./bet.entity";
 import type { RoundStatus } from "./round-status";
@@ -17,6 +19,7 @@ export type RoundSnapshot = {
   id: string;
   status: RoundStatus;
   crashPointBasisPoints: bigint;
+  proof: RoundProofSnapshot;
   bets: BetSnapshot[];
   createdAt: Date;
   startedAt: Date | null;
@@ -27,6 +30,7 @@ type RoundProps = {
   id: string;
   status: RoundStatus;
   crashPoint: CrashPoint;
+  proof: RoundProof;
   bets: Bet[];
   createdAt: Date;
   startedAt: Date | null;
@@ -36,6 +40,7 @@ type RoundProps = {
 type CreateRoundInput = {
   id?: string;
   crashPoint: CrashPoint;
+  proof: RoundProof;
   now: Date;
 };
 
@@ -47,6 +52,7 @@ export class Round {
       id: input.id ?? crypto.randomUUID(),
       status: "betting",
       crashPoint: input.crashPoint,
+      proof: input.proof,
       bets: [],
       createdAt: input.now,
       startedAt: null,
@@ -59,6 +65,7 @@ export class Round {
       id: snapshot.id,
       status: snapshot.status,
       crashPoint: CrashPoint.fromBasisPoints(snapshot.crashPointBasisPoints),
+      proof: RoundProof.rehydrate(snapshot.proof),
       bets: snapshot.bets.map((bet) => Bet.rehydrate(bet)),
       createdAt: snapshot.createdAt,
       startedAt: snapshot.startedAt,
@@ -76,6 +83,10 @@ export class Round {
 
   get crashPoint(): CrashPoint {
     return this.props.crashPoint;
+  }
+
+  get proof(): RoundProof {
+    return this.props.proof;
   }
 
   get bets(): readonly Bet[] {
@@ -164,6 +175,7 @@ export class Round {
       id: this.id,
       status: this.status,
       crashPointBasisPoints: this.crashPoint.basisPoints,
+      proof: this.proof.toSnapshot(),
       bets: this.props.bets.map((bet) => bet.toSnapshot()),
       createdAt: this.createdAt,
       startedAt: this.startedAt,

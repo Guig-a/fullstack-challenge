@@ -10,6 +10,11 @@ model Round {
   id                    String    @id @default(uuid()) @db.Uuid
   status                String
   crashPointBasisPoints BigInt
+  serverSeedHash        String
+  serverSeed            String?
+  clientSeed            String
+  nonce                 BigInt
+  hmac                  String
   createdAt             DateTime  @default(now())
   startedAt             DateTime?
   crashedAt             DateTime?

@@ -1,0 +1,6 @@
+ALTER TABLE "rounds"
+  ADD COLUMN "serverSeedHash" TEXT NOT NULL,
+  ADD COLUMN "serverSeed" TEXT,
+  ADD COLUMN "clientSeed" TEXT NOT NULL,
+  ADD COLUMN "nonce" BIGINT NOT NULL,
+  ADD COLUMN "hmac" TEXT NOT NULL;
