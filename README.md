@@ -115,6 +115,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - A janela de apostas é configurável via `ROUND_BETTING_WINDOW_MS`, com padrão de 10 segundos.
 - Adicionados testes unitários para criação de rodada, transição para running, crash, criação da próxima rodada e cálculo do delay até crash.
 
+#### `feat(games): broadcast realtime round events`
+
+- Adicionado gateway WebSocket no Game Service usando `@nestjs/websockets` com Socket.IO no path `/games/socket.io`.
+- Criada a porta de aplicação `RoundRealtimePublisher`, mantendo o motor e os casos de uso desacoplados do transporte WebSocket.
+- O servidor publica eventos `round.created`, `round.started`, `round.crashed`, `bet.placed`, `bet.cashed_out` e `bet.rejected`.
+- Payloads reutilizam DTOs de apresentação para serializar centavos, multiplicadores e nonces como string, preservando precisão em JSON.
+- Adicionados testes unitários para emissões do motor, comandos de aposta/cashout, compensação de débito rejeitado e payloads do gateway.
+
 ### Validação Atual
 
 ```bash
@@ -122,7 +130,7 @@ bun run docker:up
 docker compose ps
 cd services/wallets && bun test tests/unit
 cd services/games && bun test tests/unit
-cd services/games && bunx tsc --noEmit
+cd services/games && bun run tsc --noEmit
 ```
 
 Também foi validado manualmente o fluxo autenticado via Kong com token real do usuário `player` do Keycloak:
@@ -280,7 +288,18 @@ Todos os endpoints são acessados via **Kong** (`http://localhost:8000`).
 
 A conexão WebSocket é usada exclusivamente para **comunicação do servidor para o cliente** (push de eventos em tempo real). Todas as ações do jogador (apostar, sacar) são feitas via REST.
 
-Você deve projetar os eventos que o servidor emite para manter todos os clientes sincronizados em tempo real. Considere quais informações o frontend precisa receber para:
+No Game Service, o gateway Socket.IO fica exposto em `/games/socket.io` e emite os seguintes eventos:
+
+- `round.created`: nova rodada de apostas disponível.
+- `round.started`: rodada entrou em execução e o multiplicador pode ser animado pelo frontend.
+- `round.crashed`: rodada finalizada; inclui dados públicos da rodada e prova revelável.
+- `bet.placed`: aposta registrada no Game e débito solicitado para a Wallet.
+- `bet.cashed_out`: cashout registrado no Game e crédito solicitado para a Wallet.
+- `bet.rejected`: aposta compensada após rejeição de débito pela Wallet.
+
+Os payloads seguem os DTOs HTTP (`RoundResponseDto` e `BetResponseDto`), com `bigint` serializado como string para evitar perda de precisão.
+
+Esses eventos mantêm todos os clientes sincronizados em tempo real e fornecem ao frontend as informações necessárias para:
 
 - Saber quando uma nova rodada começa e quando a fase de apostas termina
 - Acompanhar o multiplicador durante a rodada

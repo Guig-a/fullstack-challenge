@@ -1,6 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { Bet } from "../../domain/round/bet.entity";
 import { BetAmount } from "../../domain/money/bet-amount.vo";
+import { ROUND_REALTIME_PUBLISHER } from "../ports/round-realtime.publisher";
+import type { RoundRealtimePublisher } from "../ports/round-realtime.publisher";
 import { ROUND_REPOSITORY } from "../ports/round.repository";
 import type { RoundRepository } from "../ports/round.repository";
 import { WALLET_EVENTS_PUBLISHER } from "../ports/wallet-events.publisher";
@@ -20,6 +22,8 @@ export class PlaceBetHandler {
     private readonly rounds: RoundRepository,
     @Inject(WALLET_EVENTS_PUBLISHER)
     private readonly walletEvents: WalletEventsPublisher,
+    @Inject(ROUND_REALTIME_PUBLISHER)
+    private readonly realtime: RoundRealtimePublisher,
   ) {}
 
   async execute(command: PlaceBetCommand): Promise<Bet> {
@@ -31,6 +35,7 @@ export class PlaceBetHandler {
 
     const bet = round.placeBet(command.userId, BetAmount.fromCents(command.amountCents), command.placedAt);
     await this.rounds.save(round);
+    this.realtime.betPlaced(round, bet);
     this.walletEvents.requestDebit({
       walletUserId: command.userId,
       roundId: round.id,

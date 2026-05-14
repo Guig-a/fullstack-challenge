@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { ROUND_REALTIME_PUBLISHER } from "../ports/round-realtime.publisher";
+import type { RoundRealtimePublisher } from "../ports/round-realtime.publisher";
 import { ROUND_REPOSITORY } from "../ports/round.repository";
 import type { RoundRepository } from "../ports/round.repository";
 import { RoundFactoryService } from "./round-factory.service";
@@ -18,6 +20,8 @@ export class RoundEngineService implements OnModuleInit, OnModuleDestroy {
     private readonly rounds: RoundRepository,
     private readonly roundFactory: RoundFactoryService,
     private readonly config: ConfigService,
+    @Inject(ROUND_REALTIME_PUBLISHER)
+    private readonly realtime: RoundRealtimePublisher,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -37,6 +41,7 @@ export class RoundEngineService implements OnModuleInit, OnModuleDestroy {
         nonce: BigInt(now.getTime()),
       });
       await this.rounds.save(round);
+      this.realtime.roundCreated(round);
       this.scheduleRoundStart(this.getBettingWindowMs());
       this.logger.log(`Created betting round ${round.id}`);
       return;
@@ -62,6 +67,7 @@ export class RoundEngineService implements OnModuleInit, OnModuleDestroy {
 
     round.start(now);
     await this.rounds.save(round);
+    this.realtime.roundStarted(round);
     this.scheduleRoundCrash(this.getCrashDelayMs(round.crashPoint.basisPoints));
     this.logger.log(`Started round ${round.id}`);
   }
@@ -76,12 +82,14 @@ export class RoundEngineService implements OnModuleInit, OnModuleDestroy {
 
     round.crash(now);
     await this.rounds.save(round);
+    this.realtime.roundCrashed(round);
 
     const nextRound = this.roundFactory.createNextRound({
       now,
       nonce: BigInt(now.getTime()),
     });
     await this.rounds.save(nextRound);
+    this.realtime.roundCreated(nextRound);
     this.scheduleRoundStart(this.getBettingWindowMs());
     this.logger.log(`Crashed round ${round.id} and created ${nextRound.id}`);
   }

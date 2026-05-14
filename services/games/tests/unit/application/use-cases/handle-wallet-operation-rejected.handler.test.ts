@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import type { RoundRealtimePublisher } from "../../../../src/application/ports/round-realtime.publisher";
 import type { RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
 import { HandleWalletOperationRejectedHandler } from "../../../../src/application/use-cases/handle-wallet-operation-rejected.handler";
 import { BetAmount } from "../../../../src/domain/money/bet-amount.vo";
@@ -31,6 +32,34 @@ class FakeRoundRepository implements RoundRepository {
   }
 }
 
+class FakeRoundRealtimePublisher implements RoundRealtimePublisher {
+  events: string[] = [];
+
+  roundCreated(): void {
+    this.events.push("round.created");
+  }
+
+  roundStarted(): void {
+    this.events.push("round.started");
+  }
+
+  roundCrashed(): void {
+    this.events.push("round.crashed");
+  }
+
+  betPlaced(): void {
+    this.events.push("bet.placed");
+  }
+
+  betCashedOut(): void {
+    this.events.push("bet.cashed_out");
+  }
+
+  betRejected(): void {
+    this.events.push("bet.rejected");
+  }
+}
+
 describe("HandleWalletOperationRejectedHandler", () => {
   const createdAt = new Date("2026-01-01T00:00:00.000Z");
   const rejectedAt = new Date("2026-01-01T00:00:01.000Z");
@@ -55,7 +84,8 @@ describe("HandleWalletOperationRejectedHandler", () => {
     const round = createRound();
     const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
     repository.round = round;
-    const handler = new HandleWalletOperationRejectedHandler(repository);
+    const realtime = new FakeRoundRealtimePublisher();
+    const handler = new HandleWalletOperationRejectedHandler(repository, realtime);
 
     await handler.execute({
       walletUserId: "player-id",
@@ -67,6 +97,7 @@ describe("HandleWalletOperationRejectedHandler", () => {
     });
 
     expect(repository.savedRound?.bets.find((savedBet) => savedBet.id === bet.id)?.status).toBe("rejected");
+    expect(realtime.events).toEqual(["bet.rejected"]);
   });
 
   it("does not mutate the round when wallet credit fails", async () => {
@@ -74,7 +105,8 @@ describe("HandleWalletOperationRejectedHandler", () => {
     const round = createRound();
     const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
     repository.round = round;
-    const handler = new HandleWalletOperationRejectedHandler(repository);
+    const realtime = new FakeRoundRealtimePublisher();
+    const handler = new HandleWalletOperationRejectedHandler(repository, realtime);
 
     await handler.execute({
       walletUserId: "player-id",
@@ -87,11 +119,13 @@ describe("HandleWalletOperationRejectedHandler", () => {
 
     expect(repository.savedRound).toBeNull();
     expect(bet.status).toBe("placed");
+    expect(realtime.events).toEqual([]);
   });
 
   it("ignores debit rejection for unknown rounds", async () => {
     const repository = new FakeRoundRepository();
-    const handler = new HandleWalletOperationRejectedHandler(repository);
+    const realtime = new FakeRoundRealtimePublisher();
+    const handler = new HandleWalletOperationRejectedHandler(repository, realtime);
 
     await handler.execute({
       walletUserId: "player-id",
@@ -103,5 +137,6 @@ describe("HandleWalletOperationRejectedHandler", () => {
     });
 
     expect(repository.savedRound).toBeNull();
+    expect(realtime.events).toEqual([]);
   });
 });

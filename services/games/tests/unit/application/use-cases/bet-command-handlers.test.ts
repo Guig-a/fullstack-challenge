@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CurrentMultiplierProvider } from "../../../../src/application/ports/current-multiplier.provider";
+import type { RoundRealtimePublisher } from "../../../../src/application/ports/round-realtime.publisher";
 import type { RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
 import type {
   RequestWalletCreditCommand,
@@ -62,6 +63,34 @@ class FakeWalletEventsPublisher implements WalletEventsPublisher {
   }
 }
 
+class FakeRoundRealtimePublisher implements RoundRealtimePublisher {
+  events: string[] = [];
+
+  roundCreated(): void {
+    this.events.push("round.created");
+  }
+
+  roundStarted(): void {
+    this.events.push("round.started");
+  }
+
+  roundCrashed(): void {
+    this.events.push("round.crashed");
+  }
+
+  betPlaced(): void {
+    this.events.push("bet.placed");
+  }
+
+  betCashedOut(): void {
+    this.events.push("bet.cashed_out");
+  }
+
+  betRejected(): void {
+    this.events.push("bet.rejected");
+  }
+}
+
 describe("bet command handlers", () => {
   const createdAt = new Date("2026-01-01T00:00:00.000Z");
   const startedAt = new Date("2026-01-01T00:00:10.000Z");
@@ -85,8 +114,9 @@ describe("bet command handlers", () => {
   it("places a bet in the current betting round and persists it", async () => {
     const repository = new FakeRoundRepository();
     const walletEvents = new FakeWalletEventsPublisher();
+    const realtime = new FakeRoundRealtimePublisher();
     repository.currentRound = createRound();
-    const handler = new PlaceBetHandler(repository, walletEvents);
+    const handler = new PlaceBetHandler(repository, walletEvents, realtime);
 
     const bet = await handler.execute({
       userId: "player-id",
@@ -105,11 +135,12 @@ describe("bet command handlers", () => {
         amountCents: 1_000n,
       },
     ]);
+    expect(realtime.events).toEqual(["bet.placed"]);
   });
 
   it("rejects placing a bet without a current round", async () => {
     const repository = new FakeRoundRepository();
-    const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher());
+    const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher(), new FakeRoundRealtimePublisher());
 
     await expect(
       handler.execute({
@@ -125,7 +156,7 @@ describe("bet command handlers", () => {
     const round = createRound();
     round.placeBet("player-id", BetAmount.fromCents(1_000n), commandAt);
     repository.currentRound = round;
-    const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher());
+    const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher(), new FakeRoundRealtimePublisher());
 
     await expect(
       handler.execute({
@@ -139,6 +170,7 @@ describe("bet command handlers", () => {
   it("cashouts a bet using a server-side multiplier provider", async () => {
     const repository = new FakeRoundRepository();
     const walletEvents = new FakeWalletEventsPublisher();
+    const realtime = new FakeRoundRealtimePublisher();
     const round = createRound();
     round.placeBet("player-id", BetAmount.fromCents(2_000n), createdAt);
     round.start(startedAt);
@@ -147,6 +179,7 @@ describe("bet command handlers", () => {
       repository,
       new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)),
       walletEvents,
+      realtime,
     );
 
     const bet = await handler.execute({
@@ -165,6 +198,7 @@ describe("bet command handlers", () => {
         amountCents: 3_500n,
       },
     ]);
+    expect(realtime.events).toEqual(["bet.cashed_out"]);
   });
 
   it("rejects cashout without a current round", async () => {
@@ -173,6 +207,7 @@ describe("bet command handlers", () => {
       repository,
       new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)),
       new FakeWalletEventsPublisher(),
+      new FakeRoundRealtimePublisher(),
     );
 
     await expect(

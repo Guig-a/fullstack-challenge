@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ConfigService } from "@nestjs/config";
+import type { RoundRealtimePublisher } from "../../../../src/application/ports/round-realtime.publisher";
 import type { RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
 import { RoundEngineService } from "../../../../src/application/services/round-engine.service";
 import type { RoundFactoryService } from "../../../../src/application/services/round-factory.service";
@@ -43,40 +44,76 @@ class FakeRoundFactory implements Pick<RoundFactoryService, "createNextRound"> {
   }
 }
 
+class FakeRoundRealtimePublisher implements RoundRealtimePublisher {
+  events: string[] = [];
+
+  roundCreated(): void {
+    this.events.push("round.created");
+  }
+
+  roundStarted(): void {
+    this.events.push("round.started");
+  }
+
+  roundCrashed(): void {
+    this.events.push("round.crashed");
+  }
+
+  betPlaced(): void {
+    this.events.push("bet.placed");
+  }
+
+  betCashedOut(): void {
+    this.events.push("bet.cashed_out");
+  }
+
+  betRejected(): void {
+    this.events.push("bet.rejected");
+  }
+}
+
 describe("RoundEngineService", () => {
   const now = new Date("2026-01-01T00:00:00.000Z");
   const later = new Date("2026-01-01T00:00:10.000Z");
 
-  function createEngine(repository: FakeRoundRepository, factory = new FakeRoundFactory()): RoundEngineService {
+  function createEngine(
+    repository: FakeRoundRepository,
+    factory = new FakeRoundFactory(),
+    realtime = new FakeRoundRealtimePublisher(),
+  ): RoundEngineService {
     const config = {
       get: (key: string) => (key === "ROUND_BETTING_WINDOW_MS" ? "100000" : undefined),
     } as ConfigService;
 
-    return new RoundEngineService(repository, factory as RoundFactoryService, config);
+    return new RoundEngineService(repository, factory as RoundFactoryService, config, realtime);
   }
 
   it("creates a betting round when no current round exists", async () => {
     const repository = new FakeRoundRepository();
     const factory = new FakeRoundFactory();
-    const engine = createEngine(repository, factory);
+    const realtime = new FakeRoundRealtimePublisher();
+    const engine = createEngine(repository, factory, realtime);
 
     await engine.ensureScheduledRound(now);
     engine.onModuleDestroy();
 
     expect(factory.createdRounds).toBe(1);
     expect(repository.currentRound?.status).toBe("betting");
+    expect(realtime.events).toEqual(["round.created"]);
   });
 
   it("starts the current betting round", async () => {
     const repository = new FakeRoundRepository();
     repository.currentRound = createRound("round-id", now);
-    const engine = createEngine(repository);
+    const realtime = new FakeRoundRealtimePublisher();
+    const engine = createEngine(repository, undefined, realtime);
 
     await engine.startCurrentRound(later);
     engine.onModuleDestroy();
 
     expect(repository.currentRound?.status).toBe("running");
     expect(repository.currentRound?.startedAt).toBe(later);
+    expect(realtime.events).toEqual(["round.started"]);
   });
 
   it("crashes the current running round and creates the next betting round", async () => {
@@ -85,7 +122,8 @@ describe("RoundEngineService", () => {
     runningRound.start(now);
     repository.currentRound = runningRound;
     const factory = new FakeRoundFactory();
-    const engine = createEngine(repository, factory);
+    const realtime = new FakeRoundRealtimePublisher();
+    const engine = createEngine(repository, factory, realtime);
 
     await engine.crashCurrentRound(later);
     engine.onModuleDestroy();
@@ -94,6 +132,7 @@ describe("RoundEngineService", () => {
     expect(runningRound.crashedAt).toBe(later);
     expect(factory.createdRounds).toBe(1);
     expect(repository.currentRound?.status).toBe("betting");
+    expect(realtime.events).toEqual(["round.crashed", "round.created"]);
   });
 
   it("calculates crash delay from crash point basis points", () => {

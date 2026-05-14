@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { CURRENT_MULTIPLIER_PROVIDER } from "./application/ports/current-multiplier.provider";
+import { ROUND_REALTIME_PUBLISHER } from "./application/ports/round-realtime.publisher";
 import { ROUND_REPOSITORY } from "./application/ports/round.repository";
 import { WALLET_EVENTS_PUBLISHER } from "./application/ports/wallet-events.publisher";
 import { RoundEngineService } from "./application/services/round-engine.service";
@@ -19,6 +20,7 @@ import { PrismaRoundRepository } from "./infrastructure/persistence/repositories
 import { ElapsedTimeCurrentMultiplierProvider } from "./infrastructure/time/elapsed-time-current-multiplier.provider";
 import { ProvablyFairService } from "./domain/provably-fair/provably-fair.service";
 import { GamesController } from "./presentation/controllers/games.controller";
+import { RoundsGateway } from "./presentation/gateways/rounds.gateway";
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true })],
@@ -28,6 +30,7 @@ import { GamesController } from "./presentation/controllers/games.controller";
     PrismaRoundRepository,
     ElapsedTimeCurrentMultiplierProvider,
     ProvablyFairService,
+    RoundsGateway,
     RoundFactoryService,
     RoundEngineService,
     RabbitmqWalletEventsPublisher,
@@ -46,6 +49,10 @@ import { GamesController } from "./presentation/controllers/games.controller";
     {
       provide: CURRENT_MULTIPLIER_PROVIDER,
       useExisting: ElapsedTimeCurrentMultiplierProvider,
+    },
+    {
+      provide: ROUND_REALTIME_PUBLISHER,
+      useExisting: RoundsGateway,
     },
     {
       provide: WALLET_EVENTS_PUBLISHER,

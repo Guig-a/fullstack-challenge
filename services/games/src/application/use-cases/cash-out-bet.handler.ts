@@ -2,6 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import { Bet } from "../../domain/round/bet.entity";
 import { CURRENT_MULTIPLIER_PROVIDER } from "../ports/current-multiplier.provider";
 import type { CurrentMultiplierProvider } from "../ports/current-multiplier.provider";
+import { ROUND_REALTIME_PUBLISHER } from "../ports/round-realtime.publisher";
+import type { RoundRealtimePublisher } from "../ports/round-realtime.publisher";
 import { ROUND_REPOSITORY } from "../ports/round.repository";
 import type { RoundRepository } from "../ports/round.repository";
 import { WALLET_EVENTS_PUBLISHER } from "../ports/wallet-events.publisher";
@@ -22,6 +24,8 @@ export class CashOutBetHandler {
     private readonly currentMultiplier: CurrentMultiplierProvider,
     @Inject(WALLET_EVENTS_PUBLISHER)
     private readonly walletEvents: WalletEventsPublisher,
+    @Inject(ROUND_REALTIME_PUBLISHER)
+    private readonly realtime: RoundRealtimePublisher,
   ) {}
 
   async execute(command: CashOutBetCommand): Promise<Bet> {
@@ -34,6 +38,7 @@ export class CashOutBetHandler {
     const multiplier = this.currentMultiplier.getCurrentMultiplier(round, command.cashedOutAt);
     const bet = round.cashOut(command.userId, multiplier, command.cashedOutAt);
     await this.rounds.save(round);
+    this.realtime.betCashedOut(round, bet);
     this.walletEvents.requestCredit({
       walletUserId: command.userId,
       roundId: round.id,
