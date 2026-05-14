@@ -44,12 +44,21 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Adicionados testes unitários de domínio para criação de carteira, crédito, débito, saldo insuficiente e precisão monetária.
 - Criados contratos iniciais em `@crash/contracts` para eventos futuros de débito/crédito via mensageria.
 
+#### `feat(games): model round and bet domain`
+
+- Modelado o domínio do Game Service com `Round` como agregado principal e `Bet` como entidade de aposta.
+- Implementadas transições `betting -> running -> crashed` e invariantes de aposta única por jogador, cashout apenas durante rodada ativa e liquidação de apostas pendentes no crash.
+- Valores monetários e multiplicadores foram representados com inteiros (`bigint`) para evitar ponto flutuante em regras financeiras.
+- O `Round` recebe um `CrashPoint` explícito, permitindo cenários determinísticos nos testes e preparando a base para futuros E2E com seed controlada.
+- Adicionados testes unitários cobrindo ciclo de vida da rodada, validações de aposta, cashout, cálculo de payout e transições inválidas.
+
 ### Validação Atual
 
 ```bash
 bun run docker:up
 docker compose ps
 cd services/wallets && bun test tests/unit
+cd services/games && bun test tests/unit
 ```
 
 Também foi validado manualmente o fluxo autenticado via Kong com token real do usuário `player` do Keycloak:
