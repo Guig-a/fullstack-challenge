@@ -52,6 +52,13 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - O `Round` recebe um `CrashPoint` explícito, permitindo cenários determinísticos nos testes e preparando a base para futuros E2E com seed controlada.
 - Adicionados testes unitários cobrindo ciclo de vida da rodada, validações de aposta, cashout, cálculo de payout e transições inválidas.
 
+#### `feat(games): add provably fair crash generation`
+
+- Implementada a base provably fair do Game Service com commit prévio da seed via `SHA-256` e cálculo do resultado por `HMAC-SHA256(serverSeed, clientSeed:nonce)`.
+- O crash point é derivado dos primeiros 52 bits do HMAC e convertido para basis points com `bigint`, mantendo o resultado verificável e sem ponto flutuante nas regras financeiras.
+- Adicionadas verificações para revelar a seed ao final da rodada e permitir que o jogador compare `serverSeedHash` e `CrashPoint` calculado.
+- Cobertos testes unitários determinísticos para hash da seed, HMAC esperado, crash point esperado, verificação positiva/negativa, seed inválida e nonce inválido.
+
 ### Validação Atual
 
 ```bash
