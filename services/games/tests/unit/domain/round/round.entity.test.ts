@@ -168,4 +168,21 @@ describe("Round", () => {
       RoundAlreadyCrashedError,
     );
   });
+
+  it("rehydrates persisted round and bet snapshots", () => {
+    const round = createRound();
+
+    round.placeBet("lost-player", BetAmount.fromCents(1_000n), createdAt);
+    round.placeBet("cashout-player", BetAmount.fromCents(2_000n), createdAt);
+    round.start(startedAt);
+    round.cashOut("cashout-player", Multiplier.fromBasisPoints(150n), settledAt);
+    round.crash(crashedAt);
+
+    const rehydratedRound = Round.rehydrate(round.toSnapshot());
+    const rehydratedBets = rehydratedRound.bets;
+
+    expect(rehydratedRound.toSnapshot()).toEqual(round.toSnapshot());
+    expect(rehydratedBets.find((bet) => bet.userId === "lost-player")?.status).toBe("lost");
+    expect(rehydratedBets.find((bet) => bet.userId === "cashout-player")?.payoutCents).toBe(3_000n);
+  });
 });

@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Round {
+  id                    String    @id @default(uuid()) @db.Uuid
+  status                String
+  crashPointBasisPoints BigInt
+  createdAt             DateTime  @default(now())
+  startedAt             DateTime?
+  crashedAt             DateTime?
+  bets                  Bet[]
+
+  @@map("rounds")
+}
+
+model Bet {
+  id                            String    @id @default(uuid()) @db.Uuid
+  roundId                       String    @db.Uuid
+  userId                        String
+  amountCents                   BigInt
+  status                        String
+  cashoutMultiplierBasisPoints  BigInt?
+  payoutCents                   BigInt?
+  placedAt                      DateTime
+  settledAt                     DateTime?
+  round                         Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId])
+  @@index([userId])
+  @@map("bets")
+}

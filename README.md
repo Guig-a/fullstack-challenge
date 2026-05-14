@@ -59,6 +59,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Adicionadas verificações para revelar a seed ao final da rodada e permitir que o jogador compare `serverSeedHash` e `CrashPoint` calculado.
 - Cobertos testes unitários determinísticos para hash da seed, HMAC esperado, crash point esperado, verificação positiva/negativa, seed inválida e nonce inválido.
 
+#### `feat(games): persist rounds and bets`
+
+- Adicionada persistência do Game Service com Prisma e PostgreSQL para `rounds` e `bets`, mantendo `Round` como agregado de domínio e o banco como detalhe de infraestrutura.
+- Criada migration com unicidade por `roundId + userId`, reforçando também no banco a regra de uma aposta por jogador em cada rodada.
+- Implementada porta `RoundRepository` e repositório Prisma para salvar e reidratar snapshots de rodadas e apostas sem acoplar o domínio ao ORM.
+- Migrations e geração do Prisma Client foram integradas ao startup do container do Game, seguindo o padrão já usado no Wallet Service.
+- Adicionado teste unitário de reidratação de snapshots persistidos para proteger o contrato entre domínio e repositório.
+
 ### Validação Atual
 
 ```bash
@@ -66,6 +74,7 @@ bun run docker:up
 docker compose ps
 cd services/wallets && bun test tests/unit
 cd services/games && bun test tests/unit
+cd services/games && bunx tsc --noEmit
 ```
 
 Também foi validado manualmente o fluxo autenticado via Kong com token real do usuário `player` do Keycloak:
