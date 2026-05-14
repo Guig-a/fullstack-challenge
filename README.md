@@ -107,6 +107,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Rejeições de crédito são consumidas e preservadas para tratamento operacional futuro, sem reverter cashout já registrado no Game.
 - Adicionados testes unitários para compensação de débito rejeitado, nova aposta após rejeição e preservação do fluxo de crédito rejeitado.
 
+#### `feat(games): run automated round cycle`
+
+- Adicionado motor automático no Game Service para garantir uma rodada corrente ao subir o serviço.
+- O ciclo transiciona a rodada de `betting` para `running`, agenda o crash com base no `CrashPoint` e cria a próxima rodada de apostas ao finalizar.
+- Novas rodadas são criadas por uma factory que gera seed/proof provably fair e mantém o `CrashPoint` verificável.
+- A janela de apostas é configurável via `ROUND_BETTING_WINDOW_MS`, com padrão de 10 segundos.
+- Adicionados testes unitários para criação de rodada, transição para running, crash, criação da próxima rodada e cálculo do delay até crash.
+
 ### Validação Atual
 
 ```bash

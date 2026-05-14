@@ -3,6 +3,8 @@ import { ConfigModule } from "@nestjs/config";
 import { CURRENT_MULTIPLIER_PROVIDER } from "./application/ports/current-multiplier.provider";
 import { ROUND_REPOSITORY } from "./application/ports/round.repository";
 import { WALLET_EVENTS_PUBLISHER } from "./application/ports/wallet-events.publisher";
+import { RoundEngineService } from "./application/services/round-engine.service";
+import { RoundFactoryService } from "./application/services/round-factory.service";
 import { CashOutBetHandler } from "./application/use-cases/cash-out-bet.handler";
 import { GetCurrentRoundHandler } from "./application/use-cases/get-current-round.handler";
 import { GetRoundHistoryHandler } from "./application/use-cases/get-round-history.handler";
@@ -15,6 +17,7 @@ import { RabbitmqWalletResultsConsumer } from "./infrastructure/messaging/rabbit
 import { PrismaService } from "./infrastructure/persistence/prisma/prisma.service";
 import { PrismaRoundRepository } from "./infrastructure/persistence/repositories/prisma-round.repository";
 import { ElapsedTimeCurrentMultiplierProvider } from "./infrastructure/time/elapsed-time-current-multiplier.provider";
+import { ProvablyFairService } from "./domain/provably-fair/provably-fair.service";
 import { GamesController } from "./presentation/controllers/games.controller";
 
 @Module({
@@ -24,6 +27,9 @@ import { GamesController } from "./presentation/controllers/games.controller";
     PrismaService,
     PrismaRoundRepository,
     ElapsedTimeCurrentMultiplierProvider,
+    ProvablyFairService,
+    RoundFactoryService,
+    RoundEngineService,
     RabbitmqWalletEventsPublisher,
     RabbitmqWalletResultsConsumer,
     GetCurrentRoundHandler,
