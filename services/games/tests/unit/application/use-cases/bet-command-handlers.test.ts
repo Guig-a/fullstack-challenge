@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { CurrentMultiplierProvider } from "../../../../src/application/ports/current-multiplier.provider";
 import type { RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
+import type {
+  RequestWalletCreditCommand,
+  RequestWalletDebitCommand,
+  WalletEventsPublisher,
+} from "../../../../src/application/ports/wallet-events.publisher";
 import { CashOutBetHandler } from "../../../../src/application/use-cases/cash-out-bet.handler";
 import { CurrentRoundNotFoundError } from "../../../../src/application/use-cases/current-round-not-found.error";
 import { PlaceBetHandler } from "../../../../src/application/use-cases/place-bet.handler";
@@ -44,6 +49,19 @@ class FixedMultiplierProvider implements CurrentMultiplierProvider {
   }
 }
 
+class FakeWalletEventsPublisher implements WalletEventsPublisher {
+  debitRequests: RequestWalletDebitCommand[] = [];
+  creditRequests: RequestWalletCreditCommand[] = [];
+
+  requestDebit(command: RequestWalletDebitCommand): void {
+    this.debitRequests.push(command);
+  }
+
+  requestCredit(command: RequestWalletCreditCommand): void {
+    this.creditRequests.push(command);
+  }
+}
+
 describe("bet command handlers", () => {
   const createdAt = new Date("2026-01-01T00:00:00.000Z");
   const startedAt = new Date("2026-01-01T00:00:10.000Z");
@@ -66,8 +84,9 @@ describe("bet command handlers", () => {
 
   it("places a bet in the current betting round and persists it", async () => {
     const repository = new FakeRoundRepository();
+    const walletEvents = new FakeWalletEventsPublisher();
     repository.currentRound = createRound();
-    const handler = new PlaceBetHandler(repository);
+    const handler = new PlaceBetHandler(repository, walletEvents);
 
     const bet = await handler.execute({
       userId: "player-id",
@@ -78,11 +97,19 @@ describe("bet command handlers", () => {
     expect(bet.userId).toBe("player-id");
     expect(bet.amount.cents).toBe(1_000n);
     expect(repository.savedRound?.bets).toHaveLength(1);
+    expect(walletEvents.debitRequests).toEqual([
+      {
+        walletUserId: "player-id",
+        roundId: "round-id",
+        betId: bet.id,
+        amountCents: 1_000n,
+      },
+    ]);
   });
 
   it("rejects placing a bet without a current round", async () => {
     const repository = new FakeRoundRepository();
-    const handler = new PlaceBetHandler(repository);
+    const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher());
 
     await expect(
       handler.execute({
@@ -98,7 +125,7 @@ describe("bet command handlers", () => {
     const round = createRound();
     round.placeBet("player-id", BetAmount.fromCents(1_000n), commandAt);
     repository.currentRound = round;
-    const handler = new PlaceBetHandler(repository);
+    const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher());
 
     await expect(
       handler.execute({
@@ -111,11 +138,16 @@ describe("bet command handlers", () => {
 
   it("cashouts a bet using a server-side multiplier provider", async () => {
     const repository = new FakeRoundRepository();
+    const walletEvents = new FakeWalletEventsPublisher();
     const round = createRound();
     round.placeBet("player-id", BetAmount.fromCents(2_000n), createdAt);
     round.start(startedAt);
     repository.currentRound = round;
-    const handler = new CashOutBetHandler(repository, new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)));
+    const handler = new CashOutBetHandler(
+      repository,
+      new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)),
+      walletEvents,
+    );
 
     const bet = await handler.execute({
       userId: "player-id",
@@ -125,11 +157,23 @@ describe("bet command handlers", () => {
     expect(bet.status).toBe("cashed_out");
     expect(bet.payoutCents).toBe(3_500n);
     expect(repository.savedRound?.bets[0]?.status).toBe("cashed_out");
+    expect(walletEvents.creditRequests).toEqual([
+      {
+        walletUserId: "player-id",
+        roundId: "round-id",
+        betId: bet.id,
+        amountCents: 3_500n,
+      },
+    ]);
   });
 
   it("rejects cashout without a current round", async () => {
     const repository = new FakeRoundRepository();
-    const handler = new CashOutBetHandler(repository, new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)));
+    const handler = new CashOutBetHandler(
+      repository,
+      new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)),
+      new FakeWalletEventsPublisher(),
+    );
 
     await expect(
       handler.execute({

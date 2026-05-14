@@ -91,6 +91,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - A liquidação financeira por RabbitMQ ainda fica isolada para a próxima etapa: este commit registra a aposta/cashout no Game, mas não debita/credita Wallet.
 - Adicionados testes unitários para comandos de aposta, cashout e cálculo server-side do multiplicador atual.
 
+#### `feat(services): integrate wallet events over rabbitmq`
+
+- Centralizados em `@crash/contracts` os nomes de exchange, routing keys e filas dos eventos de Wallet.
+- Game publica `wallet.debit.requested` ao registrar aposta e `wallet.credit.requested` ao registrar cashout.
+- Wallet consome pedidos via RabbitMQ, aplica débito/crédito usando o domínio `Wallet` e publica `wallet.debited`, `wallet.credited` ou `wallet.operation.rejected`.
+- Game consome os eventos de resultado da Wallet para fechar a comunicação bidirecional entre serviços; a saga compensatória completa para rejeições fica como próxima evolução.
+- Adicionados testes unitários para os handlers de débito/crédito da Wallet e para a publicação de pedidos de Wallet pelos comandos do Game.
+
 ### Validação Atual
 
 ```bash

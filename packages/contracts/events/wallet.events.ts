@@ -1,5 +1,20 @@
 import type { EventEnvelope } from "./event-envelope";
 
+export const WALLET_EVENTS_EXCHANGE = "wallet.events";
+
+export const WALLET_EVENT_ROUTING_KEYS = {
+  debitRequested: "wallet.debit.requested",
+  debited: "wallet.debited",
+  creditRequested: "wallet.credit.requested",
+  credited: "wallet.credited",
+  operationRejected: "wallet.operation.rejected",
+} as const;
+
+export const WALLET_EVENT_QUEUES = {
+  walletRequests: "wallet.requests",
+  gameWalletResults: "game.wallet.results",
+} as const;
+
 export type WalletDebitRequested = EventEnvelope<
   "wallet.debit.requested",
   {
