@@ -5,6 +5,7 @@ import type { BetSnapshot } from "../../../domain/round/bet.entity";
 import type { BetStatus } from "../../../domain/round/bet-status";
 import type { RoundStatus } from "../../../domain/round/round-status";
 import type { RoundRepository } from "../../../application/ports/round.repository";
+import type { RoundHistoryQuery } from "../../../application/ports/round.repository";
 import { PrismaService } from "../prisma/prisma.service";
 
 type PersistedRound = Awaited<ReturnType<PrismaRoundRepository["findPersistedById"]>>;
@@ -44,6 +45,29 @@ export class PrismaRoundRepository implements RoundRepository {
     }
 
     return this.toDomain(round);
+  }
+
+  async findHistory(query: RoundHistoryQuery): Promise<Round[]> {
+    const rounds = await this.prisma.round.findMany({
+      where: {
+        status: "crashed",
+      },
+      include: {
+        bets: true,
+      },
+      orderBy: [
+        {
+          crashedAt: "desc",
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
+      take: query.limit,
+      skip: query.offset,
+    });
+
+    return rounds.map((round) => this.toDomain(round));
   }
 
   async save(round: Round): Promise<Round> {

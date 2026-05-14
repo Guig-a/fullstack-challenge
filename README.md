@@ -74,6 +74,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Atualizado o repositório Prisma para salvar e reidratar a prova junto com o agregado, mantendo o domínio desacoplado do ORM.
 - Adicionados testes unitários cobrindo snapshot e reidratação da prova.
 
+#### `feat(games): expose round query endpoints`
+
+- Implementados casos de uso de leitura para rodada atual, histórico paginado e verificação provably fair de rodadas finalizadas.
+- Expostas as rotas públicas `GET /games/rounds/current`, `GET /games/rounds/history` e `GET /games/rounds/:roundId/verify`.
+- DTOs serializam valores `bigint` como string e ocultam `serverSeed` enquanto a rodada ainda não crashou.
+- O endpoint de verificação retorna conflito para rodadas ainda não finalizadas, preservando a regra de revelar a seed apenas após o crash.
+- Adicionados testes unitários para handlers de leitura, paginação, verificação e serialização segura dos DTOs.
+
 ### Validação Atual
 
 ```bash
