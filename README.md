@@ -82,6 +82,15 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - O endpoint de verificação retorna conflito para rodadas ainda não finalizadas, preservando a regra de revelar a seed apenas após o crash.
 - Adicionados testes unitários para handlers de leitura, paginação, verificação e serialização segura dos DTOs.
 
+#### `feat(games): add authenticated bet command endpoints`
+
+- Adicionada validação JWT no Game Service seguindo o mesmo padrão do Wallet Service com Keycloak/JWKS.
+- Implementados casos de uso autenticados para `POST /games/bet` e `POST /games/bet/cashout`, persistindo as mudanças no agregado `Round`.
+- `POST /games/bet/cashout` usa um provedor server-side de multiplicador baseado no tempo de rodada, sem aceitar multiplicador informado pelo cliente.
+- Valores de aposta continuam entrando como centavos inteiros (`amountCents` string) e são validados pelo value object `BetAmount`.
+- A liquidação financeira por RabbitMQ ainda fica isolada para a próxima etapa: este commit registra a aposta/cashout no Game, mas não debita/credita Wallet.
+- Adicionados testes unitários para comandos de aposta, cashout e cálculo server-side do multiplicador atual.
+
 ### Validação Atual
 
 ```bash
