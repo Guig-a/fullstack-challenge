@@ -233,6 +233,12 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Padrão de `VITE_KEYCLOAK_REALM` alinhado ao realm importado (`crash-game`).
 - Validado com `bun run --cwd frontend build` e `bun run --cwd frontend test`.
 
+#### `fix(api): enable cors for frontend requests`
+
+- Habilitado CORS nos serviços Game e Wallet para aceitar o frontend local em `http://localhost:3000` e `http://localhost:5173`.
+- Preflights `OPTIONS` agora permitem `Authorization` e `Content-Type`, desbloqueando chamadas autenticadas via Kong após login no Keycloak.
+- Validado com `prisma generate` + `tsc --noEmit` em Game e Wallet.
+
 ### Validação Atual
 
 ```bash
