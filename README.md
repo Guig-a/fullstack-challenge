@@ -208,6 +208,15 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Mensagens de erro derivadas das respostas NestJS (`message` string ou lista).
 - Validado com `bun run --cwd frontend build`.
 
+#### `feat(frontend): realtime sync via socket.io`
+
+- Adicionado `socket.io-client` conectando ao Kong com `path` `/games/socket.io`, invalidando queries de rodada, histórico e carteira nos eventos `round.*` e `bet.*`.
+- Polling REST reduzido a fallback quando o socket não está conectado, mantendo resiliência sem competir com o push do servidor.
+- Multiplicador ao vivo calculado no cliente com a mesma curva de tempo do `ElapsedTimeCurrentMultiplierProvider` (basis points por segundo), alinhado ao cashout server-side.
+- Indicadores visuais de sessão em tempo real e de fallback por REST quando a conexão WebSocket cai.
+- Variável opcional `VITE_GAMES_SOCKET_PATH` documentada em `.env.example`.
+- Validado com `bun run --cwd frontend build`.
+
 ### Validação Atual
 
 ```bash

@@ -31,6 +31,7 @@ locais de Kong/Keycloak.
 Variáveis usadas pelo app:
 
 - `VITE_API_BASE_URL`: URL pública do Kong, por padrão `http://localhost:8000`.
+- `VITE_GAMES_SOCKET_PATH`: path Socket.IO exposto pelo Kong, por padrão `/games/socket.io`.
 - `VITE_KEYCLOAK_URL`: URL base do Keycloak, por padrão `http://localhost:8080`.
 - `VITE_KEYCLOAK_REALM`: realm usado pelo desafio, por padrão `crash`.
 - `VITE_KEYCLOAK_CLIENT_ID`: client público do frontend, por padrão `crash-game-client`.
@@ -53,3 +54,9 @@ Comandos de jogo:
 
 As chamadas autenticadas reutilizam o token do `AuthProvider`, que atualiza o
 JWT antes de enviar o bearer token ao Kong.
+
+### WebSocket (Socket.IO)
+
+O app conecta em `VITE_API_BASE_URL` com `path` configurável (`VITE_GAMES_SOCKET_PATH`,
+padrão `/games/socket.io` via Kong). Os eventos do servidor disparam invalidação
+das queries acima para manter estado consistente com o push do Game Service.

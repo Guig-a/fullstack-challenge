@@ -11,12 +11,15 @@ import type { BetResponse } from "../api/gameTypes";
 import { useAuthenticatedGameApi } from "../api/useAuthenticatedGameApi";
 import { useAuthenticatedWalletApi } from "../api/useAuthenticatedWalletApi";
 import { useAuth } from "../auth/AuthProvider";
+import { useGameSocket } from "../hooks/useGameSocket";
+import { useLiveMultiplierLabel } from "../hooks/useLiveMultiplierLabel";
 
 export function GamePage() {
   const queryClient = useQueryClient();
   const auth = useAuth();
   const gameApi = useAuthenticatedGameApi();
   const walletApi = useAuthenticatedWalletApi();
+  const { realtimeConnected, realtimeReconnecting } = useGameSocket(true);
   const userId = auth.user?.id;
 
   const [amountCentsInput, setAmountCentsInput] = useState("100");
@@ -27,7 +30,7 @@ export function GamePage() {
   const currentRoundQuery = useQuery({
     queryKey: ["games", "rounds", "current"],
     queryFn: gameApi.getCurrentRound,
-    refetchInterval: 2_000,
+    refetchInterval: realtimeConnected ? false : 3_000,
   });
 
   const walletQuery = useQuery({
@@ -38,10 +41,11 @@ export function GamePage() {
   const betHistoryQuery = useQuery({
     queryKey: ["games", "bets", "me"],
     queryFn: gameApi.getMyBetHistory,
-    refetchInterval: 5_000,
+    refetchInterval: realtimeConnected ? false : 8_000,
   });
 
   const round = currentRoundQuery.data;
+  const multiplierLabel = useLiveMultiplierLabel(round);
   const wallet = walletQuery.data;
   const betHistory = betHistoryQuery.data?.items ?? [];
 
@@ -118,14 +122,24 @@ export function GamePage() {
               Sessão autenticada como {userLabel}
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tight md:text-7xl">
-              {round?.status === "crashed"
-                ? formatBasisPoints(round.crashPointBasisPoints)
-                : "1.00x"}
+              {multiplierLabel}
             </h2>
           </div>
-          <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-semibold text-emerald-200">
-            {round ? formatRoundStatus(round.status) : "Sincronizando"}
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            {realtimeConnected ? (
+              <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200">
+                Tempo real
+              </span>
+            ) : null}
+            {realtimeReconnecting ? (
+              <span className="max-w-[14rem] rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-center text-xs font-medium text-amber-100">
+                Tempo real desconectado — usando REST
+              </span>
+            ) : null}
+            <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-semibold text-emerald-200">
+              {round ? formatRoundStatus(round.status) : "Sincronizando"}
+            </span>
+          </div>
         </div>
 
         {currentBet ? (
