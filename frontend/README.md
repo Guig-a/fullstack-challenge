@@ -27,3 +27,13 @@ bun run --cwd frontend build
 
 Copie `.env.example` para `.env.local` quando precisar sobrescrever os valores
 locais de Kong/Keycloak.
+
+Variáveis usadas pelo app:
+
+- `VITE_API_BASE_URL`: URL pública do Kong, por padrão `http://localhost:8000`.
+- `VITE_KEYCLOAK_URL`: URL base do Keycloak, por padrão `http://localhost:8080`.
+- `VITE_KEYCLOAK_REALM`: realm usado pelo desafio, por padrão `crash`.
+- `VITE_KEYCLOAK_CLIENT_ID`: client público do frontend, por padrão `crash-game-client`.
+
+Com a stack local em execução, acesse `/login` e entre com o usuário de teste do
+realm para liberar a rota `/game`.

@@ -182,6 +182,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Criada a primeira camada de API tipada para rodada atual, aposta, cashout e histórico do jogador, preservando centavos e multiplicadores como string.
 - Validado com `bun run --cwd frontend build`.
 
+#### `feat(frontend): authenticate with keycloak`
+
+- Integrado `keycloak-js` ao frontend usando Authorization Code + PKCE contra o client público `crash-game-client`.
+- Criado `AuthProvider` para inicializar sessão, expor usuário autenticado, login/logout e refresh de token antes de chamadas protegidas.
+- Protegida a rota `/game`, redirecionando usuários anônimos para `/login` e mantendo o shell consciente do estado autenticado.
+- Adicionado hook de API autenticada para reutilizar o bearer token nos endpoints REST do Game via Kong.
+- Validado com `bun run --cwd frontend build`.
+
 ### Validação Atual
 
 ```bash

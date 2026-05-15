@@ -1,3 +1,5 @@
+import { useAuth } from "../auth/AuthProvider";
+
 const stats = [
   { label: "Rodada", value: "Aguardando sync" },
   { label: "Multiplicador", value: "1.00x" },
@@ -5,6 +7,9 @@ const stats = [
 ];
 
 export function GamePage() {
+  const auth = useAuth();
+  const userLabel = auth.user?.username ?? auth.user?.email ?? "jogador";
+
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
@@ -12,6 +17,9 @@ export function GamePage() {
           <div>
             <p className="text-sm font-medium text-emerald-300">
               Painel do jogo
+            </p>
+            <p className="mt-2 text-sm text-slate-400">
+              Sessão autenticada como {userLabel}
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tight md:text-7xl">
               1.00x

@@ -1,6 +1,15 @@
+import { Navigate } from "react-router-dom";
+
+import { useAuth } from "../auth/AuthProvider";
 import { appConfig } from "../config/appConfig";
 
 export function LoginPage() {
+  const auth = useAuth();
+
+  if (auth.isAuthenticated) {
+    return <Navigate to="/game" replace />;
+  }
+
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/20">
@@ -9,9 +18,18 @@ export function LoginPage() {
           Entrada preparada para Keycloak
         </h2>
         <p className="mt-4 max-w-2xl text-slate-300">
-          Este primeiro shell deixa a tela pronta para conectar o fluxo OAuth
-          com o realm do desafio e trocar o token JWT com os serviços via Kong.
+          Use o fluxo OAuth público do Keycloak para obter um JWT válido e
+          chamar os serviços protegidos via Kong.
         </p>
+
+        <button
+          className="mt-8 rounded-2xl bg-emerald-400 px-6 py-3 font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
+          disabled={auth.status === "loading"}
+          type="button"
+          onClick={() => void auth.login()}
+        >
+          Entrar com Keycloak
+        </button>
 
         <div className="mt-8 grid gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-5 text-sm text-slate-300">
           <div className="flex justify-between gap-4">
@@ -37,11 +55,12 @@ export function LoginPage() {
 
       <aside className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-6">
         <h3 className="text-lg font-semibold text-emerald-100">
-          Próxima etapa
+          Usuário de teste
         </h3>
         <p className="mt-3 text-sm leading-6 text-emerald-50/80">
-          Implementar o adaptador de autenticação, persistir sessão em memória
-          e anexar o bearer token nas chamadas REST do jogo e da wallet.
+          O realm local possui o jogador `player`. Após login, o token fica
+          disponível no provider de autenticação para as chamadas REST do jogo e
+          da wallet.
         </p>
       </aside>
     </section>

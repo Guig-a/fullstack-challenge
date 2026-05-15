@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 
+import { useAuth } from "../auth/AuthProvider";
 import { appConfig } from "../config/appConfig";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -11,6 +12,9 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
   ].join(" ");
 
 export function AppShell() {
+  const auth = useAuth();
+  const userLabel = auth.user?.username ?? auth.user?.email ?? "Jogador";
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -31,9 +35,19 @@ export function AppShell() {
             <NavLink to="/game" className={navLinkClassName}>
               Jogo
             </NavLink>
-            <NavLink to="/login" className={navLinkClassName}>
-              Login
-            </NavLink>
+            {auth.isAuthenticated ? (
+              <button
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+                type="button"
+                onClick={() => void auth.logout()}
+              >
+                Sair de {userLabel}
+              </button>
+            ) : (
+              <NavLink to="/login" className={navLinkClassName}>
+                Login
+              </NavLink>
+            )}
           </nav>
         </div>
       </header>
