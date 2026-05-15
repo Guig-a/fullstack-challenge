@@ -168,6 +168,12 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Adicionado `.dockerignore` na raiz para manter imagens enxutas e evitar copiar `node_modules`, testes e arquivos locais.
 - Validado `docker compose build games wallets`, `docker compose up -d` com serviços saudáveis e `bun test services/games/tests/e2e` contra a stack real.
 
+#### `test(e2e): cover backend gameplay flow`
+
+- Estendido o E2E do backend para cobrir aposta confirmada pela Wallet, rejeição de aposta duplicada, cashout com saldo atualizado e aposta perdida após crash.
+- Para evitar flakiness sem falsificar a prova, o Game pode receber limites opcionais de crash point e gerar seeds até encontrar um HMAC dentro da faixa configurada.
+- Validado contra a stack real com `ROUND_MIN_CRASH_POINT_BASIS_POINTS=130`, `ROUND_MAX_CRASH_POINT_BASIS_POINTS=150` e `bun test services/games/tests/e2e`.
+
 ### Validação Atual
 
 ```bash
@@ -177,6 +183,15 @@ cd services/wallets && bun test tests/unit
 cd services/games && bun test tests/unit
 cd services/games && bun run tsc --noEmit
 cd services/games && bun test tests/e2e
+```
+
+Para rodar o E2E completo com janelas determinísticas de cashout/crash:
+
+```powershell
+$env:ROUND_MIN_CRASH_POINT_BASIS_POINTS='130'
+$env:ROUND_MAX_CRASH_POINT_BASIS_POINTS='150'
+docker compose up -d --build games
+bun test services/games/tests/e2e
 ```
 
 Também foi validado manualmente o fluxo autenticado via Kong com token real do usuário `player` do Keycloak:
@@ -455,6 +470,8 @@ Cada serviço possui `.env.example` com as variáveis necessárias. Copie para `
 cp services/games/.env.example services/games/.env
 cp services/wallets/.env.example services/wallets/.env
 ```
+
+O Game Service também aceita `ROUND_MIN_CRASH_POINT_BASIS_POINTS` e `ROUND_MAX_CRASH_POINT_BASIS_POINTS` como auxiliares opcionais para E2E/local. Quando configurados, a factory continua usando provably fair, mas procura uma seed cujo HMAC gere crash point dentro da faixa definida. Em execução normal, deixe ambos vazios.
 
 **Você pode modificar qualquer parte da infra.** Prefere SQS ao invés de RabbitMQ? Outro API Gateway? Outro IdP? Fique à vontade. O único requisito é que **`bun run docker:up` suba tudo**.
 

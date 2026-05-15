@@ -10,6 +10,8 @@ type WalletResponse = {
 type RoundResponse = {
   id: string;
   status: "betting" | "running" | "crashed";
+  startedAt: string | null;
+  crashedAt: string | null;
 };
 
 type BetResponse = {
@@ -18,6 +20,7 @@ type BetResponse = {
   userId: string;
   amountCents: string;
   status: "pending_debit" | "placed" | "cashed_out" | "lost" | "rejected";
+  payoutCents: string | null;
 };
 
 type PlayerBetHistoryResponse = {
@@ -37,29 +40,19 @@ const config = {
   playerUserId: process.env.E2E_PLAYER_USER_ID ?? "00000000-0000-0000-0000-000000000001",
 };
 
-describe("backend smoke E2E", () => {
+describe("backend gameplay E2E", () => {
   test(
-    "authenticates, reads seeded wallet and exercises a bet when the betting window is available",
+    "covers wallet, bet confirmation, duplicate rejection, cashout and crash loss",
     async () => {
       const token = await getPlayerToken();
+      const initialWallet = await getWallet(token);
 
-      const wallet = await requestJson<WalletResponse>("/wallets/me", {
-        headers: authHeaders(token),
-      });
+      expect(initialWallet.userId).toBe(config.playerUserId);
+      expect(BigInt(initialWallet.balanceCents)).toBeGreaterThanOrEqual(200n);
 
-      expect(wallet.userId).toBe(config.playerUserId);
-      expect(BigInt(wallet.balanceCents)).toBeGreaterThanOrEqual(100n);
-
-      const currentRound = await requestJson<RoundResponse>("/games/rounds/current");
-      expect(["betting", "running"]).toContain(currentRound.status);
-
-      const round = await waitForBettingRound();
-
-      if (!round) {
-        return;
-      }
-
-      const placedBet = await requestJson<BetResponse>("/games/bet", {
+      const cashoutBet = await placeBetInNextBettingRound(token, "100");
+      const confirmedCashoutBet = await waitForPlayerBetStatus(token, cashoutBet.id, "placed");
+      const duplicateResponse = await request("/games/bet", {
         method: "POST",
         headers: {
           ...authHeaders(token),
@@ -68,17 +61,37 @@ describe("backend smoke E2E", () => {
         body: JSON.stringify({ amountCents: "100" }),
       });
 
-      expect(placedBet.roundId).toBe(round.id);
-      expect(placedBet.userId).toBe(config.playerUserId);
-      expect(placedBet.amountCents).toBe("100");
-      expect(["pending_debit", "placed"]).toContain(placedBet.status);
+      expect(duplicateResponse.status).toBe(409);
 
-      const confirmedBet = await waitForPlayerBetStatus(token, placedBet.id, "placed");
+      await waitForRoundStatus(confirmedCashoutBet.roundId, "running");
+      await delay(500);
 
-      expect(confirmedBet.amountCents).toBe("100");
-      expect(confirmedBet.roundId).toBe(round.id);
+      const cashedOutBet = await requestJson<BetResponse>("/games/bet/cashout", {
+        method: "POST",
+        headers: authHeaders(token),
+      });
+
+      expect(cashedOutBet.id).toBe(confirmedCashoutBet.id);
+      expect(cashedOutBet.status).toBe("cashed_out");
+      expect(BigInt(cashedOutBet.payoutCents ?? "0")).toBeGreaterThanOrEqual(100n);
+
+      const walletAfterCashout = await waitForWalletBalanceAtLeast(token, BigInt(initialWallet.balanceCents));
+      const lossBet = await placeBetInNextBettingRound(token, "100", confirmedCashoutBet.roundId);
+      const confirmedLossBet = await waitForPlayerBetStatus(token, lossBet.id, "placed");
+      const walletAfterLossDebit = await waitForWalletBalanceAtMost(
+        token,
+        BigInt(walletAfterCashout.balanceCents) - 100n,
+      );
+
+      expect(BigInt(walletAfterLossDebit.balanceCents)).toBeLessThanOrEqual(BigInt(walletAfterCashout.balanceCents) - 100n);
+
+      const lostBet = await waitForPlayerBetStatus(token, confirmedLossBet.id, "lost", 90_000);
+      const walletAfterCrash = await getWallet(token);
+
+      expect(lostBet.payoutCents).toBeNull();
+      expect(walletAfterCrash.balanceCents).toBe(walletAfterLossDebit.balanceCents);
     },
-    60_000,
+    180_000,
   );
 });
 
@@ -111,30 +124,97 @@ async function getPlayerToken(): Promise<string> {
   return payload.access_token;
 }
 
-async function waitForBettingRound(): Promise<RoundResponse | null> {
-  return retryUntil(
+async function getWallet(token: string): Promise<WalletResponse> {
+  return requestJson<WalletResponse>("/wallets/me", {
+    headers: authHeaders(token),
+  });
+}
+
+async function placeBetInNextBettingRound(
+  token: string,
+  amountCents: string,
+  previousRoundId?: string,
+): Promise<BetResponse> {
+  const bet = await retryUntil(
     async () => {
       const round = await requestJson<RoundResponse>("/games/rounds/current");
 
-      return round.status === "betting" ? round : null;
+      if (round.status !== "betting" || round.id === previousRoundId) {
+        return null;
+      }
+
+      const response = await request("/games/bet", {
+        method: "POST",
+        headers: {
+          ...authHeaders(token),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ amountCents }),
+      });
+
+      if (response.status === 409) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Request /games/bet failed: ${response.status} ${await response.text()}`);
+      }
+
+      const placedBet = (await response.json()) as BetResponse;
+
+      expect(placedBet.roundId).toBe(round.id);
+      expect(placedBet.userId).toBe(config.playerUserId);
+      expect(placedBet.amountCents).toBe(amountCents);
+
+      return placedBet;
     },
-    "current round to enter betting state",
+    "betting round to accept a bet",
     {
-      failOnTimeout: false,
-      timeoutMs: 45_000,
+      timeoutMs: 120_000,
     },
   );
+
+  if (!bet) {
+    throw new Error("Timed out waiting for betting round to accept a bet");
+  }
+
+  return bet;
 }
 
-async function waitForPlayerBetStatus(token: string, betId: string, status: BetResponse["status"]): Promise<BetResponse> {
-  const bet = await retryUntil(async () => {
-    const history = await requestJson<PlayerBetHistoryResponse>("/games/bets/me?limit=20&offset=0", {
-      headers: authHeaders(token),
-    });
-    const bet = history.items.find((item) => item.id === betId);
+async function waitForRoundStatus(roundId: string, status: RoundResponse["status"]): Promise<RoundResponse> {
+  const round = await retryUntil(async () => {
+    const currentRound = await requestJson<RoundResponse>("/games/rounds/current");
 
-    return bet?.status === status ? bet : null;
-  }, `bet ${betId} to reach ${status}`);
+    return currentRound.id === roundId && currentRound.status === status ? currentRound : null;
+  }, `round ${roundId} to reach ${status}`);
+
+  if (!round) {
+    throw new Error(`Timed out waiting for round ${roundId} to reach ${status}`);
+  }
+
+  return round;
+}
+
+async function waitForPlayerBetStatus(
+  token: string,
+  betId: string,
+  status: BetResponse["status"],
+  timeoutMs = 20_000,
+): Promise<BetResponse> {
+  const bet = await retryUntil(
+    async () => {
+      const history = await requestJson<PlayerBetHistoryResponse>("/games/bets/me?limit=20&offset=0", {
+        headers: authHeaders(token),
+      });
+      const playerBet = history.items.find((item) => item.id === betId);
+
+      return playerBet?.status === status ? playerBet : null;
+    },
+    `bet ${betId} to reach ${status}`,
+    {
+      timeoutMs,
+    },
+  );
 
   if (!bet) {
     throw new Error(`Timed out waiting for bet ${betId} to reach ${status}`);
@@ -143,10 +223,38 @@ async function waitForPlayerBetStatus(token: string, betId: string, status: BetR
   return bet;
 }
 
+async function waitForWalletBalanceAtLeast(token: string, balanceCents: bigint): Promise<WalletResponse> {
+  const wallet = await retryUntil(async () => {
+    const currentWallet = await getWallet(token);
+
+    return BigInt(currentWallet.balanceCents) >= balanceCents ? currentWallet : null;
+  }, `wallet balance to be at least ${balanceCents.toString()}`);
+
+  if (!wallet) {
+    throw new Error(`Timed out waiting for wallet balance to be at least ${balanceCents.toString()}`);
+  }
+
+  return wallet;
+}
+
+async function waitForWalletBalanceAtMost(token: string, balanceCents: bigint): Promise<WalletResponse> {
+  const wallet = await retryUntil(async () => {
+    const currentWallet = await getWallet(token);
+
+    return BigInt(currentWallet.balanceCents) <= balanceCents ? currentWallet : null;
+  }, `wallet balance to be at most ${balanceCents.toString()}`);
+
+  if (!wallet) {
+    throw new Error(`Timed out waiting for wallet balance to be at most ${balanceCents.toString()}`);
+  }
+
+  return wallet;
+}
+
 async function retryUntil<T>(
   operation: () => Promise<T | null>,
   description: string,
-  options: { failOnTimeout?: boolean; timeoutMs?: number } = {},
+  options: { timeoutMs?: number } = {},
 ): Promise<T | null> {
   const deadline = Date.now() + (options.timeoutMs ?? 20_000);
   let lastError: unknown;
@@ -162,18 +270,14 @@ async function retryUntil<T>(
       lastError = error;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  if (options.failOnTimeout === false) {
-    return null;
+    await delay(500);
   }
 
   throw new Error(`Timed out waiting for ${description}${lastError ? `: ${String(lastError)}` : ""}`);
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${config.gatewayUrl}${path}`, init);
+  const response = await request(path, init);
 
   if (!response.ok) {
     throw new Error(`Request ${path} failed: ${response.status} ${await response.text()}`);
@@ -182,8 +286,16 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+function request(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(`${config.gatewayUrl}${path}`, init);
+}
+
 function authHeaders(token: string): Record<string, string> {
   return {
     authorization: `Bearer ${token}`,
   };
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
