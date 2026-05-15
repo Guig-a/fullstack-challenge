@@ -131,6 +131,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Apostas ainda pendentes no momento do crash são rejeitadas no agregado; se um débito tardio chegar para uma aposta rejeitada, o Game solicita crédito de refund para a Wallet.
 - Adicionados testes unitários para confirmação de débito, bloqueio de cashout pendente, idempotência de débito confirmado e refund de débito tardio.
 
+#### `feat(games): expose player bet history`
+
+- Implementado `GET /games/bets/me` autenticado para retornar o histórico paginado de apostas do jogador logado.
+- Adicionada consulta `findBetsByUserId` na porta `RoundRepository` e no repositório Prisma, ordenando apostas mais recentes primeiro.
+- Criado `GetPlayerBetHistoryHandler` para manter a regra de leitura fora do controller.
+- A resposta usa `PlayerBetHistoryResponseDto` com `BetResponseDto`, preservando centavos, multiplicadores e payouts como string.
+- Adicionados testes unitários para o handler e serialização do histórico paginado.
+
 ### Validação Atual
 
 ```bash

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { Bet } from "../../../../src/domain/round/bet.entity";
 import type { RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
+import type { PlayerBetHistoryQuery } from "../../../../src/application/ports/round.repository";
+import { GetPlayerBetHistoryHandler } from "../../../../src/application/use-cases/get-player-bet-history.handler";
 import { GetCurrentRoundHandler } from "../../../../src/application/use-cases/get-current-round.handler";
 import { GetRoundHistoryHandler } from "../../../../src/application/use-cases/get-round-history.handler";
 import { GetRoundVerificationHandler } from "../../../../src/application/use-cases/get-round-verification.handler";
@@ -16,7 +19,9 @@ class FakeRoundRepository implements RoundRepository {
   currentRound: Round | null = null;
   roundsById = new Map<string, Round>();
   history: Round[] = [];
+  playerBets: Bet[] = [];
   lastHistoryQuery: RoundHistoryQuery | null = null;
+  lastPlayerBetHistoryQuery: PlayerBetHistoryQuery | null = null;
 
   findById(id: string): Promise<Round | null> {
     return Promise.resolve(this.roundsById.get(id) ?? null);
@@ -30,6 +35,12 @@ class FakeRoundRepository implements RoundRepository {
     this.lastHistoryQuery = query;
 
     return Promise.resolve(this.history);
+  }
+
+  findBetsByUserId(query: PlayerBetHistoryQuery): Promise<Bet[]> {
+    this.lastPlayerBetHistoryQuery = query;
+
+    return Promise.resolve(this.playerBets);
   }
 
   save(round: Round): Promise<Round> {
@@ -73,6 +84,17 @@ describe("round query handlers", () => {
 
     await expect(handler.execute({ limit: 20, offset: 10 })).resolves.toEqual([round]);
     expect(repository.lastHistoryQuery).toEqual({ limit: 20, offset: 10 });
+  });
+
+  it("returns player bet history using authenticated user pagination", async () => {
+    const repository = new FakeRoundRepository();
+    const round = createRound();
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    repository.playerBets = [bet];
+    const handler = new GetPlayerBetHistoryHandler(repository);
+
+    await expect(handler.execute({ userId: "player-id", limit: 20, offset: 10 })).resolves.toEqual([bet]);
+    expect(repository.lastPlayerBetHistoryQuery).toEqual({ userId: "player-id", limit: 20, offset: 10 });
   });
 
   it("returns verification for crashed rounds", async () => {

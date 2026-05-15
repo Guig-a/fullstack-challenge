@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { CashOutBetHandler } from "../../application/use-cases/cash-out-bet.handler";
 import { CurrentRoundNotFoundError } from "../../application/use-cases/current-round-not-found.error";
+import { GetPlayerBetHistoryHandler } from "../../application/use-cases/get-player-bet-history.handler";
 import { GetCurrentRoundHandler } from "../../application/use-cases/get-current-round.handler";
 import { GetRoundHistoryHandler } from "../../application/use-cases/get-round-history.handler";
 import { GetRoundVerificationHandler } from "../../application/use-cases/get-round-verification.handler";
@@ -33,6 +34,7 @@ import {
 } from "../../domain/round/round.errors";
 import { BetResponseDto } from "../dtos/bet-response.dto";
 import { HealthCheckResponseDto } from "../dtos/health-check-response.dto";
+import { PlayerBetHistoryResponseDto } from "../dtos/player-bet-history-response.dto";
 import { PlaceBetRequestDto } from "../dtos/place-bet-request.dto";
 import { RoundHistoryResponseDto } from "../dtos/round-history-response.dto";
 import { RoundProofResponseDto } from "../dtos/round-proof-response.dto";
@@ -41,6 +43,7 @@ import { RoundResponseDto } from "../dtos/round-response.dto";
 @Controller()
 export class GamesController {
   constructor(
+    private readonly getPlayerBetHistory: GetPlayerBetHistoryHandler,
     private readonly getCurrentRound: GetCurrentRoundHandler,
     private readonly getRoundHistory: GetRoundHistoryHandler,
     private readonly getRoundVerification: GetRoundVerificationHandler,
@@ -89,6 +92,22 @@ export class GamesController {
 
       throw error;
     }
+  }
+
+  @Get("bets/me")
+  @UseGuards(JwtAuthGuard)
+  async myBets(
+    @Req() request: AuthenticatedRequest,
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+  ): Promise<PlayerBetHistoryResponseDto> {
+    const pagination = this.parsePagination(limit, offset);
+    const bets = await this.getPlayerBetHistory.execute({
+      userId: this.getUserId(request),
+      ...pagination,
+    });
+
+    return PlayerBetHistoryResponseDto.fromDomain(bets, pagination);
   }
 
   @Post("bet")

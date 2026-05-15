@@ -7,6 +7,7 @@ import { WALLET_EVENTS_PUBLISHER } from "./application/ports/wallet-events.publi
 import { RoundEngineService } from "./application/services/round-engine.service";
 import { RoundFactoryService } from "./application/services/round-factory.service";
 import { CashOutBetHandler } from "./application/use-cases/cash-out-bet.handler";
+import { GetPlayerBetHistoryHandler } from "./application/use-cases/get-player-bet-history.handler";
 import { GetCurrentRoundHandler } from "./application/use-cases/get-current-round.handler";
 import { GetRoundHistoryHandler } from "./application/use-cases/get-round-history.handler";
 import { GetRoundVerificationHandler } from "./application/use-cases/get-round-verification.handler";
@@ -36,6 +37,7 @@ import { RoundsGateway } from "./presentation/gateways/rounds.gateway";
     RoundEngineService,
     RabbitmqWalletEventsPublisher,
     RabbitmqWalletResultsConsumer,
+    GetPlayerBetHistoryHandler,
     GetCurrentRoundHandler,
     GetRoundHistoryHandler,
     GetRoundVerificationHandler,

@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Bet } from "../../../domain/round/bet.entity";
 import { Round } from "../../../domain/round/round.entity";
 import type { RoundSnapshot } from "../../../domain/round/round.entity";
 import type { BetSnapshot } from "../../../domain/round/bet.entity";
@@ -68,6 +69,26 @@ export class PrismaRoundRepository implements RoundRepository {
     });
 
     return rounds.map((round) => this.toDomain(round));
+  }
+
+  async findBetsByUserId(query: { userId: string; limit: number; offset: number }): Promise<Bet[]> {
+    const bets = await this.prisma.bet.findMany({
+      where: {
+        userId: query.userId,
+      },
+      orderBy: [
+        {
+          placedAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      take: query.limit,
+      skip: query.offset,
+    });
+
+    return bets.map((bet) => Bet.rehydrate(this.toBetSnapshot(bet)));
   }
 
   async save(round: Round): Promise<Round> {

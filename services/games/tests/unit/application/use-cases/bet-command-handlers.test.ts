@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { CurrentMultiplierProvider } from "../../../../src/application/ports/current-multiplier.provider";
 import type { RoundRealtimePublisher } from "../../../../src/application/ports/round-realtime.publisher";
-import type { RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
+import type { PlayerBetHistoryQuery, RoundHistoryQuery, RoundRepository } from "../../../../src/application/ports/round.repository";
 import type {
   RequestWalletCreditCommand,
   RequestWalletDebitCommand,
@@ -16,6 +16,7 @@ import { Multiplier } from "../../../../src/domain/multiplier/multiplier.vo";
 import { CrashSeed } from "../../../../src/domain/provably-fair/crash-seed.vo";
 import { RoundProof } from "../../../../src/domain/provably-fair/round-proof.vo";
 import { SeedHash } from "../../../../src/domain/provably-fair/seed-hash.vo";
+import { Bet } from "../../../../src/domain/round/bet.entity";
 import { Round } from "../../../../src/domain/round/round.entity";
 import { BetDebitNotConfirmedError, DuplicateBetError } from "../../../../src/domain/round/round.errors";
 
@@ -32,6 +33,10 @@ class FakeRoundRepository implements RoundRepository {
   }
 
   findHistory(_query: RoundHistoryQuery): Promise<Round[]> {
+    return Promise.resolve([]);
+  }
+
+  findBetsByUserId(_query: PlayerBetHistoryQuery): Promise<Bet[]> {
     return Promise.resolve([]);
   }
 

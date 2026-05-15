@@ -5,6 +5,7 @@ import { CrashSeed } from "../../../../src/domain/provably-fair/crash-seed.vo";
 import { RoundProof } from "../../../../src/domain/provably-fair/round-proof.vo";
 import { SeedHash } from "../../../../src/domain/provably-fair/seed-hash.vo";
 import { Round } from "../../../../src/domain/round/round.entity";
+import { PlayerBetHistoryResponseDto } from "../../../../src/presentation/dtos/player-bet-history-response.dto";
 import { RoundHistoryResponseDto } from "../../../../src/presentation/dtos/round-history-response.dto";
 import { RoundResponseDto } from "../../../../src/presentation/dtos/round-response.dto";
 
@@ -59,5 +60,17 @@ describe("RoundResponseDto", () => {
     expect(response.limit).toBe(20);
     expect(response.offset).toBe(10);
     expect(response.items).toHaveLength(1);
+  });
+
+  it("serializes player bet history pagination", () => {
+    const round = createRound();
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    const response = PlayerBetHistoryResponseDto.fromDomain([bet], { limit: 20, offset: 10 });
+
+    expect(response.limit).toBe(20);
+    expect(response.offset).toBe(10);
+    expect(response.items).toHaveLength(1);
+    expect(response.items[0]?.userId).toBe("player-id");
+    expect(response.items[0]?.amountCents).toBe("1000");
   });
 });
