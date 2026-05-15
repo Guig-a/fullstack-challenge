@@ -153,6 +153,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - O seed é executado no startup do Wallet e não altera carteiras já existentes, evitando sobrescrever saldos durante uso local.
 - Adicionados testes unitários para criação do seed, idempotência, ausência de configuração e validação do saldo inicial.
 
+#### `test(e2e): add backend smoke flow`
+
+- Adicionado E2E em `services/games/tests/e2e` para rodar contra a stack real via Kong e Keycloak.
+- O teste obtém token do usuário `player`, consulta a Wallet sem criar dados manuais, espera uma rodada em `betting`, faz uma aposta e valida o histórico autenticado.
+- A confirmação assíncrona da aposta é validada aguardando o status `placed`, cobrindo o caminho Game -> RabbitMQ -> Wallet -> RabbitMQ -> Game.
+- URLs e credenciais podem ser sobrescritas via `E2E_GATEWAY_URL`, `E2E_KEYCLOAK_TOKEN_URL`, `E2E_PLAYER_USERNAME` e `E2E_PLAYER_PASSWORD`.
+- O teste exige `bun run docker:up` rodando e serviços saudáveis.
+
 ### Validação Atual
 
 ```bash
@@ -161,6 +169,7 @@ docker compose ps
 cd services/wallets && bun test tests/unit
 cd services/games && bun test tests/unit
 cd services/games && bun run tsc --noEmit
+cd services/games && bun test tests/e2e
 ```
 
 Também foi validado manualmente o fluxo autenticado via Kong com token real do usuário `player` do Keycloak:
