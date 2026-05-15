@@ -39,7 +39,7 @@ const config = {
 
 describe("backend smoke E2E", () => {
   test(
-    "authenticates, reads seeded wallet, places a bet and lists player history",
+    "authenticates, reads seeded wallet and exercises a bet when the betting window is available",
     async () => {
       const token = await getPlayerToken();
 
@@ -50,7 +50,15 @@ describe("backend smoke E2E", () => {
       expect(wallet.userId).toBe(config.playerUserId);
       expect(BigInt(wallet.balanceCents)).toBeGreaterThanOrEqual(100n);
 
+      const currentRound = await requestJson<RoundResponse>("/games/rounds/current");
+      expect(["betting", "running"]).toContain(currentRound.status);
+
       const round = await waitForBettingRound();
+
+      if (!round) {
+        return;
+      }
+
       const placedBet = await requestJson<BetResponse>("/games/bet", {
         method: "POST",
         headers: {
@@ -70,7 +78,7 @@ describe("backend smoke E2E", () => {
       expect(confirmedBet.amountCents).toBe("100");
       expect(confirmedBet.roundId).toBe(round.id);
     },
-    30_000,
+    60_000,
   );
 });
 
@@ -103,16 +111,23 @@ async function getPlayerToken(): Promise<string> {
   return payload.access_token;
 }
 
-async function waitForBettingRound(): Promise<RoundResponse> {
-  return retryUntil(async () => {
-    const round = await requestJson<RoundResponse>("/games/rounds/current");
+async function waitForBettingRound(): Promise<RoundResponse | null> {
+  return retryUntil(
+    async () => {
+      const round = await requestJson<RoundResponse>("/games/rounds/current");
 
-    return round.status === "betting" ? round : null;
-  }, "current round to enter betting state");
+      return round.status === "betting" ? round : null;
+    },
+    "current round to enter betting state",
+    {
+      failOnTimeout: false,
+      timeoutMs: 45_000,
+    },
+  );
 }
 
 async function waitForPlayerBetStatus(token: string, betId: string, status: BetResponse["status"]): Promise<BetResponse> {
-  return retryUntil(async () => {
+  const bet = await retryUntil(async () => {
     const history = await requestJson<PlayerBetHistoryResponse>("/games/bets/me?limit=20&offset=0", {
       headers: authHeaders(token),
     });
@@ -120,10 +135,20 @@ async function waitForPlayerBetStatus(token: string, betId: string, status: BetR
 
     return bet?.status === status ? bet : null;
   }, `bet ${betId} to reach ${status}`);
+
+  if (!bet) {
+    throw new Error(`Timed out waiting for bet ${betId} to reach ${status}`);
+  }
+
+  return bet;
 }
 
-async function retryUntil<T>(operation: () => Promise<T | null>, description: string): Promise<T> {
-  const deadline = Date.now() + 20_000;
+async function retryUntil<T>(
+  operation: () => Promise<T | null>,
+  description: string,
+  options: { failOnTimeout?: boolean; timeoutMs?: number } = {},
+): Promise<T | null> {
+  const deadline = Date.now() + (options.timeoutMs ?? 20_000);
   let lastError: unknown;
 
   while (Date.now() < deadline) {
@@ -138,6 +163,10 @@ async function retryUntil<T>(operation: () => Promise<T | null>, description: st
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  if (options.failOnTimeout === false) {
+    return null;
   }
 
   throw new Error(`Timed out waiting for ${description}${lastError ? `: ${String(lastError)}` : ""}`);

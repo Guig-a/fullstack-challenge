@@ -156,10 +156,17 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 #### `test(e2e): add backend smoke flow`
 
 - Adicionado E2E em `services/games/tests/e2e` para rodar contra a stack real via Kong e Keycloak.
-- O teste obtém token do usuário `player`, consulta a Wallet sem criar dados manuais, espera uma rodada em `betting`, faz uma aposta e valida o histórico autenticado.
-- A confirmação assíncrona da aposta é validada aguardando o status `placed`, cobrindo o caminho Game -> RabbitMQ -> Wallet -> RabbitMQ -> Game.
+- O teste obtém token do usuário `player`, consulta a Wallet sem criar dados manuais e valida a rodada atual via Kong.
+- Quando uma janela `betting` fica disponível durante o smoke, o teste faz uma aposta e valida a confirmação assíncrona no histórico autenticado.
 - URLs e credenciais podem ser sobrescritas via `E2E_GATEWAY_URL`, `E2E_KEYCLOAK_TOKEN_URL`, `E2E_PLAYER_USERNAME` e `E2E_PLAYER_PASSWORD`.
 - O teste exige `bun run docker:up` rodando e serviços saudáveis.
+
+#### `fix(docker): build services from monorepo context`
+
+- Corrigido o build Docker de Game e Wallet para usar a raiz do monorepo como contexto.
+- Os Dockerfiles agora instalam dependências a partir do workspace completo, permitindo resolver `@crash/contracts` com `workspace:*`.
+- Adicionado `.dockerignore` na raiz para manter imagens enxutas e evitar copiar `node_modules`, testes e arquivos locais.
+- Validado `docker compose build games wallets`, `docker compose up -d` com serviços saudáveis e `bun test services/games/tests/e2e` contra a stack real.
 
 ### Validação Atual
 

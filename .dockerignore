@@ -1,0 +1,19 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+
+# Tests are not needed in runtime service images.
+**/tests
+**/*.test.ts
+**/*.spec.ts
+
+# Local environment files.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Editor and local artifacts.
+.cursor
+*.log
