@@ -145,6 +145,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Como o Kong usa `strip_path: true` na rota `/games`, o frontend deve conectar via gateway usando `/games/socket.io`; o Kong encaminha para `/socket.io` no serviço.
 - Mantida a separação entre API pública via Kong e detalhe interno do serviço para não quebrar as rotas REST existentes.
 
+#### `feat(wallets): seed test player wallet`
+
+- Fixado o `id` do usuário `player` no realm do Keycloak para que o `sub` do JWT seja previsível entre ambientes.
+- Adicionado bootstrap idempotente no Wallet Service para criar a carteira do usuário de teste quando ela ainda não existir.
+- O saldo inicial vem de `TEST_PLAYER_INITIAL_BALANCE_CENTS`, configurado em `100000` centavos no `.env.example` do Wallet.
+- O seed é executado no startup do Wallet e não altera carteiras já existentes, evitando sobrescrever saldos durante uso local.
+- Adicionados testes unitários para criação do seed, idempotência, ausência de configuração e validação do saldo inicial.
+
 ### Validação Atual
 
 ```bash
@@ -394,6 +402,8 @@ O realm `crash-game` é importado automaticamente no `docker:up`. Nenhuma config
 | Realm          | `crash-game`                                                               |
 | Client ID      | `crash-game-client` (public, PKCE S256)                                    |
 | Usuário teste  | `player` / `player123`                                                     |
+| User ID teste  | `00000000-0000-0000-0000-000000000001`                                     |
+| Saldo inicial  | `100000` centavos (`1,000.00`)                                             |
 | OIDC discovery | `http://localhost:8080/realms/crash-game/.well-known/openid-configuration` |
 
 ### Scaffold dos serviços de aplicação

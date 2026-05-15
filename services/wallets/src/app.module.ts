@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { WALLET_REPOSITORY } from "./application/ports/wallet.repository";
+import { TestWalletSeederService } from "./application/services/test-wallet-seeder.service";
 import { CreditWalletForCashoutHandler } from "./application/use-cases/credit-wallet-for-cashout.handler";
 import { CreateWalletForUserHandler } from "./application/use-cases/create-wallet-for-user.handler";
 import { DebitWalletForBetHandler } from "./application/use-cases/debit-wallet-for-bet.handler";
@@ -26,6 +27,7 @@ import { WalletsController } from "./presentation/http/controllers/wallets.contr
     GetWalletForUserHandler,
     DebitWalletForBetHandler,
     CreditWalletForCashoutHandler,
+    TestWalletSeederService,
     RabbitmqWalletEventsService,
     JwtAuthGuard,
   ],
