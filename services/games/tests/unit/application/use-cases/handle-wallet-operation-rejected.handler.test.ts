@@ -51,6 +51,10 @@ class FakeRoundRealtimePublisher implements RoundRealtimePublisher {
     this.events.push("bet.placed");
   }
 
+  betConfirmed(): void {
+    this.events.push("bet.confirmed");
+  }
+
   betCashedOut(): void {
     this.events.push("bet.cashed_out");
   }
@@ -118,7 +122,7 @@ describe("HandleWalletOperationRejectedHandler", () => {
     });
 
     expect(repository.savedRound).toBeNull();
-    expect(bet.status).toBe("placed");
+    expect(bet.status).toBe("pending_debit");
     expect(realtime.events).toEqual([]);
   });
 

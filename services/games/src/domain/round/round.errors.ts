@@ -54,6 +54,13 @@ export class BetAlreadySettledError extends Error {
   }
 }
 
+export class BetDebitNotConfirmedError extends Error {
+  constructor() {
+    super("Bet debit has not been confirmed by the wallet.");
+    this.name = "BetDebitNotConfirmedError";
+  }
+}
+
 export class InvalidRoundTransitionError extends Error {
   constructor() {
     super("Round state transition is invalid.");

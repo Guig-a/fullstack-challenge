@@ -1,7 +1,7 @@
 import { BetAmount } from "../money/bet-amount.vo";
 import { Multiplier } from "../multiplier/multiplier.vo";
 import type { BetStatus } from "./bet-status";
-import { BetAlreadySettledError } from "./round.errors";
+import { BetAlreadySettledError, BetDebitNotConfirmedError } from "./round.errors";
 
 export type BetSnapshot = {
   id: string;
@@ -44,7 +44,7 @@ export class Bet {
       roundId: input.roundId,
       userId: input.userId,
       amount: input.amount,
-      status: "placed",
+      status: "pending_debit",
       cashoutMultiplier: null,
       payoutCents: null,
       placedAt: input.placedAt,
@@ -105,8 +105,14 @@ export class Bet {
     return this.props.settledAt;
   }
 
+  confirmDebit(): void {
+    if (this.status === "pending_debit") {
+      this.props.status = "placed";
+    }
+  }
+
   cashOut(multiplier: Multiplier, settledAt: Date): void {
-    this.assertPending();
+    this.assertConfirmedAndUnsettled();
     this.props.status = "cashed_out";
     this.props.cashoutMultiplier = multiplier;
     this.props.payoutCents = multiplier.calculatePayoutCents(this.amount);
@@ -114,13 +120,20 @@ export class Bet {
   }
 
   markLost(settledAt: Date): void {
-    this.assertPending();
+    this.assertConfirmedAndUnsettled();
     this.props.status = "lost";
     this.props.settledAt = settledAt;
   }
 
   reject(settledAt: Date): void {
-    this.assertPending();
+    if (this.status === "rejected") {
+      return;
+    }
+
+    if (this.status !== "pending_debit") {
+      throw new BetAlreadySettledError();
+    }
+
     this.props.status = "rejected";
     this.props.settledAt = settledAt;
   }
@@ -139,7 +152,11 @@ export class Bet {
     };
   }
 
-  private assertPending(): void {
+  private assertConfirmedAndUnsettled(): void {
+    if (this.status === "pending_debit") {
+      throw new BetDebitNotConfirmedError();
+    }
+
     if (this.status !== "placed") {
       throw new BetAlreadySettledError();
     }

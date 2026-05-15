@@ -10,6 +10,7 @@ import { CashOutBetHandler } from "./application/use-cases/cash-out-bet.handler"
 import { GetCurrentRoundHandler } from "./application/use-cases/get-current-round.handler";
 import { GetRoundHistoryHandler } from "./application/use-cases/get-round-history.handler";
 import { GetRoundVerificationHandler } from "./application/use-cases/get-round-verification.handler";
+import { HandleWalletDebitedHandler } from "./application/use-cases/handle-wallet-debited.handler";
 import { HandleWalletOperationRejectedHandler } from "./application/use-cases/handle-wallet-operation-rejected.handler";
 import { PlaceBetHandler } from "./application/use-cases/place-bet.handler";
 import { JwtAuthGuard } from "./infrastructure/auth/jwt-auth.guard";
@@ -38,6 +39,7 @@ import { RoundsGateway } from "./presentation/gateways/rounds.gateway";
     GetCurrentRoundHandler,
     GetRoundHistoryHandler,
     GetRoundVerificationHandler,
+    HandleWalletDebitedHandler,
     HandleWalletOperationRejectedHandler,
     PlaceBetHandler,
     CashOutBetHandler,

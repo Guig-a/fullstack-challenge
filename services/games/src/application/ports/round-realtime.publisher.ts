@@ -8,6 +8,7 @@ export interface RoundRealtimePublisher {
   roundStarted(round: Round): void;
   roundCrashed(round: Round): void;
   betPlaced(round: Round, bet: Bet): void;
+  betConfirmed(round: Round, bet: Bet): void;
   betCashedOut(round: Round, bet: Bet): void;
   betRejected(round: Round, bet: Bet): void;
 }

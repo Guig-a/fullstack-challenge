@@ -151,6 +151,18 @@ export class Round {
     return bet;
   }
 
+  confirmBetDebit(betId: string): Bet {
+    const bet = this.findBetById(betId);
+
+    if (!bet) {
+      throw new BetNotFoundError();
+    }
+
+    bet.confirmDebit();
+
+    return bet;
+  }
+
   rejectBet(betId: string, rejectedAt: Date): Bet {
     const bet = this.findBetById(betId);
 
@@ -175,6 +187,11 @@ export class Round {
     for (const bet of this.props.bets) {
       if (bet.status === "placed") {
         bet.markLost(crashedAt);
+        continue;
+      }
+
+      if (bet.status === "pending_debit") {
+        bet.reject(crashedAt);
       }
     }
 

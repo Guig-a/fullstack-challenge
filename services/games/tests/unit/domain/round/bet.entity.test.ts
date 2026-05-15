@@ -2,13 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { BetAmount } from "../../../../src/domain/money/bet-amount.vo";
 import { Multiplier } from "../../../../src/domain/multiplier/multiplier.vo";
 import { Bet } from "../../../../src/domain/round/bet.entity";
-import { BetAlreadySettledError } from "../../../../src/domain/round/round.errors";
+import { BetAlreadySettledError, BetDebitNotConfirmedError } from "../../../../src/domain/round/round.errors";
 
 describe("Bet", () => {
   const placedAt = new Date("2026-01-01T00:00:00.000Z");
   const settledAt = new Date("2026-01-01T00:00:03.000Z");
 
-  it("creates a placed bet", () => {
+  it("creates a bet pending wallet debit confirmation", () => {
     const bet = Bet.create({
       id: "bet-id",
       roundId: "round-id",
@@ -20,12 +20,12 @@ describe("Bet", () => {
     expect(bet.id).toBe("bet-id");
     expect(bet.roundId).toBe("round-id");
     expect(bet.userId).toBe("player-id");
-    expect(bet.status).toBe("placed");
+    expect(bet.status).toBe("pending_debit");
     expect(bet.amount.cents).toBe(1_000n);
     expect(bet.payoutCents).toBeNull();
   });
 
-  it("cashouts a pending bet and stores the payout", () => {
+  it("confirms wallet debit before gameplay settlement", () => {
     const bet = Bet.create({
       id: "bet-id",
       roundId: "round-id",
@@ -34,6 +34,33 @@ describe("Bet", () => {
       placedAt,
     });
 
+    bet.confirmDebit();
+
+    expect(bet.status).toBe("placed");
+  });
+
+  it("rejects cashout before wallet debit confirmation", () => {
+    const bet = Bet.create({
+      id: "bet-id",
+      roundId: "round-id",
+      userId: "player-id",
+      amount: BetAmount.fromCents(2_000n),
+      placedAt,
+    });
+
+    expect(() => bet.cashOut(Multiplier.fromBasisPoints(175n), settledAt)).toThrow(BetDebitNotConfirmedError);
+  });
+
+  it("cashouts a confirmed bet and stores the payout", () => {
+    const bet = Bet.create({
+      id: "bet-id",
+      roundId: "round-id",
+      userId: "player-id",
+      amount: BetAmount.fromCents(2_000n),
+      placedAt,
+    });
+
+    bet.confirmDebit();
     bet.cashOut(Multiplier.fromBasisPoints(175n), settledAt);
 
     expect(bet.status).toBe("cashed_out");
@@ -42,7 +69,7 @@ describe("Bet", () => {
     expect(bet.settledAt).toBe(settledAt);
   });
 
-  it("marks a pending bet as lost", () => {
+  it("marks a confirmed bet as lost", () => {
     const bet = Bet.create({
       id: "bet-id",
       roundId: "round-id",
@@ -51,6 +78,7 @@ describe("Bet", () => {
       placedAt,
     });
 
+    bet.confirmDebit();
     bet.markLost(settledAt);
 
     expect(bet.status).toBe("lost");
@@ -67,6 +95,7 @@ describe("Bet", () => {
       placedAt,
     });
 
+    bet.confirmDebit();
     bet.cashOut(Multiplier.fromBasisPoints(175n), settledAt);
 
     expect(() => bet.markLost(settledAt)).toThrow(BetAlreadySettledError);

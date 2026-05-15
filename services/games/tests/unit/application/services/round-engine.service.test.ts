@@ -63,6 +63,10 @@ class FakeRoundRealtimePublisher implements RoundRealtimePublisher {
     this.events.push("bet.placed");
   }
 
+  betConfirmed(): void {
+    this.events.push("bet.confirmed");
+  }
+
   betCashedOut(): void {
     this.events.push("bet.cashed_out");
   }

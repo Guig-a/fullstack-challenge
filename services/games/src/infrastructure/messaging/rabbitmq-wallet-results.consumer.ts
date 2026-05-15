@@ -9,6 +9,7 @@ import {
 } from "@crash/contracts";
 import amqp from "amqplib";
 import type { Channel, ChannelModel, ConsumeMessage } from "amqplib";
+import { HandleWalletDebitedHandler } from "../../application/use-cases/handle-wallet-debited.handler";
 import { HandleWalletOperationRejectedHandler } from "../../application/use-cases/handle-wallet-operation-rejected.handler";
 
 type WalletResultEvent = WalletDebited | WalletCredited | WalletOperationRejected;
@@ -19,7 +20,10 @@ export class RabbitmqWalletResultsConsumer implements OnModuleInit, OnModuleDest
   private connection?: ChannelModel;
   private channel?: Channel;
 
-  constructor(private readonly handleWalletOperationRejected: HandleWalletOperationRejectedHandler) {}
+  constructor(
+    private readonly handleWalletDebited: HandleWalletDebitedHandler,
+    private readonly handleWalletOperationRejected: HandleWalletOperationRejectedHandler,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     const rabbitmqUrl = process.env.RABBITMQ_URL;
@@ -58,6 +62,13 @@ export class RabbitmqWalletResultsConsumer implements OnModuleInit, OnModuleDest
 
     try {
       const event = JSON.parse(message.content.toString()) as WalletResultEvent;
+
+      if (event.type === WALLET_EVENT_ROUTING_KEYS.debited) {
+        await this.handleWalletDebited.execute({
+          ...event.payload,
+          debitedAt: new Date(event.occurredAt),
+        });
+      }
 
       if (event.type === WALLET_EVENT_ROUTING_KEYS.operationRejected) {
         await this.handleWalletOperationRejected.execute({

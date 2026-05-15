@@ -21,7 +21,16 @@ import { RoundNotFoundError } from "../../application/use-cases/round-not-found.
 import { RoundVerificationUnavailableError } from "../../application/use-cases/round-verification-unavailable.error";
 import type { AuthenticatedRequest } from "../../infrastructure/auth/authenticated-user";
 import { JwtAuthGuard } from "../../infrastructure/auth/jwt-auth.guard";
-import { BetAlreadySettledError, BetNotFoundError, DuplicateBetError, InvalidBetAmountError, RoundAlreadyCrashedError, RoundNotBettingError, RoundNotRunningError } from "../../domain/round/round.errors";
+import {
+  BetAlreadySettledError,
+  BetDebitNotConfirmedError,
+  BetNotFoundError,
+  DuplicateBetError,
+  InvalidBetAmountError,
+  RoundAlreadyCrashedError,
+  RoundNotBettingError,
+  RoundNotRunningError,
+} from "../../domain/round/round.errors";
 import { BetResponseDto } from "../dtos/bet-response.dto";
 import { HealthCheckResponseDto } from "../dtos/health-check-response.dto";
 import { PlaceBetRequestDto } from "../dtos/place-bet-request.dto";
@@ -164,6 +173,7 @@ export class GamesController {
       error instanceof RoundNotBettingError ||
       error instanceof RoundNotRunningError ||
       error instanceof RoundAlreadyCrashedError ||
+      error instanceof BetDebitNotConfirmedError ||
       error instanceof BetAlreadySettledError
     ) {
       throw new ConflictException(error.message);

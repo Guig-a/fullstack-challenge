@@ -75,7 +75,7 @@ describe("RoundsGateway", () => {
             roundId: "round-id",
             userId: "player-id",
             amountCents: "1000",
-            status: "placed",
+            status: "pending_debit",
             cashoutMultiplierBasisPoints: null,
             payoutCents: null,
             placedAt: now.toISOString(),

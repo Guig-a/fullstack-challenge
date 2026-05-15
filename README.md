@@ -123,6 +123,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Payloads reutilizam DTOs de apresentação para serializar centavos, multiplicadores e nonces como string, preservando precisão em JSON.
 - Adicionados testes unitários para emissões do motor, comandos de aposta/cashout, compensação de débito rejeitado e payloads do gateway.
 
+#### `feat(games): confirm wallet debits before settling bets`
+
+- A aposta passa a nascer como `pending_debit`, evitando que o jogador faça cashout antes de a Wallet confirmar o débito.
+- Game consome `wallet.debited` e confirma a aposta para `placed`, emitindo `bet.confirmed` via WebSocket.
+- Cashout e marcação de perda no crash só são permitidos para apostas com débito confirmado.
+- Apostas ainda pendentes no momento do crash são rejeitadas no agregado; se um débito tardio chegar para uma aposta rejeitada, o Game solicita crédito de refund para a Wallet.
+- Adicionados testes unitários para confirmação de débito, bloqueio de cashout pendente, idempotência de débito confirmado e refund de débito tardio.
+
 ### Validação Atual
 
 ```bash
@@ -293,7 +301,8 @@ No Game Service, o gateway Socket.IO fica exposto em `/games/socket.io` e emite 
 - `round.created`: nova rodada de apostas disponível.
 - `round.started`: rodada entrou em execução e o multiplicador pode ser animado pelo frontend.
 - `round.crashed`: rodada finalizada; inclui dados públicos da rodada e prova revelável.
-- `bet.placed`: aposta registrada no Game e débito solicitado para a Wallet.
+- `bet.placed`: aposta registrada no Game como pendente e débito solicitado para a Wallet.
+- `bet.confirmed`: débito confirmado pela Wallet e aposta liberada para cashout/crash.
 - `bet.cashed_out`: cashout registrado no Game e crédito solicitado para a Wallet.
 - `bet.rejected`: aposta compensada após rejeição de débito pela Wallet.
 

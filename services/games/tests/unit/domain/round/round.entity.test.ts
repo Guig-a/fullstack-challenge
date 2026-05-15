@@ -8,6 +8,7 @@ import { SeedHash } from "../../../../src/domain/provably-fair/seed-hash.vo";
 import { Round } from "../../../../src/domain/round/round.entity";
 import {
   BetAlreadySettledError,
+  BetDebitNotConfirmedError,
   BetNotFoundError,
   DuplicateBetError,
   InvalidRoundTransitionError,
@@ -51,14 +52,23 @@ describe("Round", () => {
     expect(round.createdAt).toBe(createdAt);
   });
 
-  it("registers a valid bet during betting", () => {
+  it("registers a valid bet during betting pending wallet debit", () => {
     const round = createRound();
     const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
 
     expect(bet.userId).toBe("player-id");
     expect(bet.amount.cents).toBe(1_000n);
-    expect(bet.status).toBe("placed");
+    expect(bet.status).toBe("pending_debit");
     expect(round.bets).toHaveLength(1);
+  });
+
+  it("confirms a bet when wallet debit succeeds", () => {
+    const round = createRound();
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+
+    const confirmedBet = round.confirmBetDebit(bet.id);
+
+    expect(confirmedBet.status).toBe("placed");
   });
 
   it("rejects a second bet from the same player", () => {
@@ -78,7 +88,7 @@ describe("Round", () => {
 
     expect(rejectedBet.status).toBe("rejected");
     expect(rejectedBet.settledAt).toBe(settledAt);
-    expect(replacementBet.status).toBe("placed");
+    expect(replacementBet.status).toBe("pending_debit");
     expect(round.bets).toHaveLength(2);
   });
 
@@ -101,8 +111,9 @@ describe("Round", () => {
 
   it("rejects cashout before the round starts", () => {
     const round = createRound();
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
 
-    round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    round.confirmBetDebit(bet.id);
 
     expect(() => round.cashOut("player-id", Multiplier.fromBasisPoints(150n), settledAt)).toThrow(RoundNotRunningError);
   });
@@ -118,19 +129,32 @@ describe("Round", () => {
   it("cashouts a player bet during running and calculates payout in cents", () => {
     const round = createRound();
 
-    round.placeBet("player-id", BetAmount.fromCents(1_999n), createdAt);
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_999n), createdAt);
+    round.confirmBetDebit(bet.id);
     round.start(startedAt);
-    const bet = round.cashOut("player-id", Multiplier.fromBasisPoints(175n), settledAt);
+    const cashedOutBet = round.cashOut("player-id", Multiplier.fromBasisPoints(175n), settledAt);
 
-    expect(bet.status).toBe("cashed_out");
-    expect(bet.cashoutMultiplier?.basisPoints).toBe(175n);
-    expect(bet.payoutCents).toBe(3_498n);
+    expect(cashedOutBet.status).toBe("cashed_out");
+    expect(cashedOutBet.cashoutMultiplier?.basisPoints).toBe(175n);
+    expect(cashedOutBet.payoutCents).toBe(3_498n);
+  });
+
+  it("rejects cashout while wallet debit is still pending", () => {
+    const round = createRound();
+
+    round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    round.start(startedAt);
+
+    expect(() => round.cashOut("player-id", Multiplier.fromBasisPoints(175n), settledAt)).toThrow(
+      BetDebitNotConfirmedError,
+    );
   });
 
   it("rejects duplicated cashout", () => {
     const round = createRound();
 
-    round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    round.confirmBetDebit(bet.id);
     round.start(startedAt);
     round.cashOut("player-id", Multiplier.fromBasisPoints(150n), settledAt);
 
@@ -149,11 +173,13 @@ describe("Round", () => {
     expect(round.crashedAt).toBe(crashedAt);
   });
 
-  it("marks pending bets as lost when the round crashes", () => {
+  it("marks confirmed pending bets as lost when the round crashes", () => {
     const round = createRound();
 
-    round.placeBet("lost-player", BetAmount.fromCents(1_000n), createdAt);
-    round.placeBet("cashout-player", BetAmount.fromCents(2_000n), createdAt);
+    const lostBet = round.placeBet("lost-player", BetAmount.fromCents(1_000n), createdAt);
+    const cashoutBet = round.placeBet("cashout-player", BetAmount.fromCents(2_000n), createdAt);
+    round.confirmBetDebit(lostBet.id);
+    round.confirmBetDebit(cashoutBet.id);
     round.start(startedAt);
     round.cashOut("cashout-player", Multiplier.fromBasisPoints(150n), settledAt);
     round.crash(crashedAt);
@@ -163,10 +189,21 @@ describe("Round", () => {
     expect(bets.find((bet) => bet.userId === "cashout-player")?.status).toBe("cashed_out");
   });
 
+  it("rejects debit-pending bets when the round crashes", () => {
+    const round = createRound();
+
+    round.placeBet("pending-player", BetAmount.fromCents(1_000n), createdAt);
+    round.start(startedAt);
+    round.crash(crashedAt);
+
+    expect(round.bets.find((bet) => bet.userId === "pending-player")?.status).toBe("rejected");
+  });
+
   it("rejects cashout after crash", () => {
     const round = createRound();
 
-    round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), createdAt);
+    round.confirmBetDebit(bet.id);
     round.start(startedAt);
     round.crash(crashedAt);
 
@@ -199,8 +236,10 @@ describe("Round", () => {
   it("rehydrates persisted round and bet snapshots", () => {
     const round = createRound();
 
-    round.placeBet("lost-player", BetAmount.fromCents(1_000n), createdAt);
-    round.placeBet("cashout-player", BetAmount.fromCents(2_000n), createdAt);
+    const lostBet = round.placeBet("lost-player", BetAmount.fromCents(1_000n), createdAt);
+    const cashoutBet = round.placeBet("cashout-player", BetAmount.fromCents(2_000n), createdAt);
+    round.confirmBetDebit(lostBet.id);
+    round.confirmBetDebit(cashoutBet.id);
     round.start(startedAt);
     round.cashOut("cashout-player", Multiplier.fromBasisPoints(150n), settledAt);
     round.crash(crashedAt);

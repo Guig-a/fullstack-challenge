@@ -40,6 +40,13 @@ export class RoundsGateway implements RoundRealtimePublisher, OnGatewayInit<Serv
     });
   }
 
+  betConfirmed(round: Round, bet: Bet): void {
+    this.emit("bet.confirmed", {
+      roundId: round.id,
+      bet: BetResponseDto.fromDomain(bet),
+    });
+  }
+
   betCashedOut(round: Round, bet: Bet): void {
     this.emit("bet.cashed_out", {
       roundId: round.id,

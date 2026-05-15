@@ -17,7 +17,7 @@ import { CrashSeed } from "../../../../src/domain/provably-fair/crash-seed.vo";
 import { RoundProof } from "../../../../src/domain/provably-fair/round-proof.vo";
 import { SeedHash } from "../../../../src/domain/provably-fair/seed-hash.vo";
 import { Round } from "../../../../src/domain/round/round.entity";
-import { DuplicateBetError } from "../../../../src/domain/round/round.errors";
+import { BetDebitNotConfirmedError, DuplicateBetError } from "../../../../src/domain/round/round.errors";
 
 class FakeRoundRepository implements RoundRepository {
   currentRound: Round | null = null;
@@ -80,6 +80,10 @@ class FakeRoundRealtimePublisher implements RoundRealtimePublisher {
 
   betPlaced(): void {
     this.events.push("bet.placed");
+  }
+
+  betConfirmed(): void {
+    this.events.push("bet.confirmed");
   }
 
   betCashedOut(): void {
@@ -154,7 +158,8 @@ describe("bet command handlers", () => {
   it("rejects duplicate bets from the same player", async () => {
     const repository = new FakeRoundRepository();
     const round = createRound();
-    round.placeBet("player-id", BetAmount.fromCents(1_000n), commandAt);
+    const bet = round.placeBet("player-id", BetAmount.fromCents(1_000n), commandAt);
+    round.confirmBetDebit(bet.id);
     repository.currentRound = round;
     const handler = new PlaceBetHandler(repository, new FakeWalletEventsPublisher(), new FakeRoundRealtimePublisher());
 
@@ -172,7 +177,8 @@ describe("bet command handlers", () => {
     const walletEvents = new FakeWalletEventsPublisher();
     const realtime = new FakeRoundRealtimePublisher();
     const round = createRound();
-    round.placeBet("player-id", BetAmount.fromCents(2_000n), createdAt);
+    const placedBet = round.placeBet("player-id", BetAmount.fromCents(2_000n), createdAt);
+    round.confirmBetDebit(placedBet.id);
     round.start(startedAt);
     repository.currentRound = round;
     const handler = new CashOutBetHandler(
@@ -199,6 +205,27 @@ describe("bet command handlers", () => {
       },
     ]);
     expect(realtime.events).toEqual(["bet.cashed_out"]);
+  });
+
+  it("rejects cashout before wallet debit confirmation", async () => {
+    const repository = new FakeRoundRepository();
+    const round = createRound();
+    round.placeBet("player-id", BetAmount.fromCents(2_000n), createdAt);
+    round.start(startedAt);
+    repository.currentRound = round;
+    const handler = new CashOutBetHandler(
+      repository,
+      new FixedMultiplierProvider(Multiplier.fromBasisPoints(175n)),
+      new FakeWalletEventsPublisher(),
+      new FakeRoundRealtimePublisher(),
+    );
+
+    await expect(
+      handler.execute({
+        userId: "player-id",
+        cashedOutAt: commandAt,
+      }),
+    ).rejects.toThrow(BetDebitNotConfirmedError);
   });
 
   it("rejects cashout without a current round", async () => {
