@@ -10,7 +10,7 @@ export type BetStatus =
 export type RoundProofResponse = {
   serverSeedHash: string;
   clientSeed: string;
-  nonce: number;
+  nonce: string;
   hmac?: string | null;
   serverSeed?: string | null;
 };
@@ -46,4 +46,19 @@ export type PlayerBetHistoryResponse = {
   items: BetResponse[];
   limit: number;
   offset: number;
+};
+
+export type RoundHistoryResponse = {
+  items: CurrentRoundResponse[];
+  limit: number;
+  offset: number;
+};
+
+/** Resposta de `GET /games/rounds/:id/verify` (rodada finalizada). */
+export type RoundVerifyResponse = {
+  serverSeedHash: string;
+  serverSeed: string | null;
+  clientSeed: string;
+  nonce: string;
+  hmac: string;
 };

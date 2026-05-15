@@ -23,6 +23,12 @@ Validar build:
 bun run --cwd frontend build
 ```
 
+Testes:
+
+```bash
+bun run --cwd frontend test
+```
+
 ### Docker
 
 Imagem de produção local (Compose): build na raiz do monorepo com `frontend/Dockerfile`,
@@ -46,8 +52,9 @@ Variáveis usadas pelo app:
 - `VITE_API_BASE_URL`: URL pública do Kong, por padrão `http://localhost:8000`.
 - `VITE_GAMES_SOCKET_PATH`: path Socket.IO exposto pelo Kong, por padrão `/games/socket.io`.
 - `VITE_KEYCLOAK_URL`: URL base do Keycloak, por padrão `http://localhost:8080`.
-- `VITE_KEYCLOAK_REALM`: realm usado pelo desafio, por padrão `crash`.
+- `VITE_KEYCLOAK_REALM`: realm usado pelo desafio, por padrão `crash-game`.
 - `VITE_KEYCLOAK_CLIENT_ID`: client público do frontend, por padrão `crash-game-client`.
+- `VITE_ROUND_BETTING_WINDOW_MS`: janela de apostas em ms para o **timer** (alinhar ao `ROUND_BETTING_WINDOW_MS` do Game), padrão `10000`.
 
 Com a stack local em execução, acesse `/login` e entre com o usuário de teste do
 realm para liberar a rota `/game`.
@@ -57,6 +64,8 @@ realm para liberar a rota `/game`.
 A tela `/game` usa TanStack Query para carregar:
 
 - `GET /games/rounds/current`
+- `GET /games/rounds/history?limit=20&offset=0`
+- `GET /games/rounds/:roundId/verify` (rodada finalizada)
 - `GET /wallets/me`
 - `GET /games/bets/me`
 

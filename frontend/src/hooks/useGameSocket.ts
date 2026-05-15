@@ -35,6 +35,12 @@ export function useGameSocket(enabled: boolean) {
       void queryClient.invalidateQueries({ queryKey: ["wallets", "me"] });
     };
 
+    const invalidateRoundHistory = () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["games", "rounds", "history"],
+      });
+    };
+
     const socket: Socket = io(appConfig.apiBaseUrl, {
       path: appConfig.gamesSocketPath,
       transports: ["websocket", "polling"],
@@ -58,9 +64,15 @@ export function useGameSocket(enabled: boolean) {
     socket.on("disconnect", onDisconnect);
     socket.on("connect_error", onConnectError);
 
-    socket.on("round.created", invalidateRound);
+    socket.on("round.created", () => {
+      invalidateRound();
+      invalidateRoundHistory();
+    });
     socket.on("round.started", invalidateRound);
-    socket.on("round.crashed", invalidateRound);
+    socket.on("round.crashed", () => {
+      invalidateRound();
+      invalidateRoundHistory();
+    });
 
     socket.on("bet.placed", () => {
       invalidateRound();

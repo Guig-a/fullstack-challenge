@@ -224,6 +224,15 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Script `preview` do frontend fixado na porta 3000, alinhado ao realm Keycloak (`localhost:3000/*`).
 - Validado com `bun run --cwd frontend build` e `docker compose build frontend`.
 
+#### `feat(frontend): complete game ui and player tests`
+
+- Tela principal alinhada ao README: gráfico/curva do crash, **serverSeedHash** visível (provably fair), painel com **`GET /games/rounds/:id/verify`** após crash, lista ao vivo de **todas as apostas** da rodada (com destaque “você”), faixa dos **últimos ~20 crashes** com cores baixo→alto, timer aproximado de **fase de apostas** (`VITE_ROUND_BETTING_WINDOW_MS`), **ganho potencial** no cashout e validação de aposta **R$ 1,00–1.000,00** (espelho de `BetAmount`).
+- **Toasts** para sucesso/erro em apostas e cashout (`ToastProvider`).
+- Socket invalida também o histórico de rodadas; queries auxiliares para `rounds/history`.
+- Testes `bun test` em `frontend/tests` (multiplicador ao vivo e payout em centavos).
+- Padrão de `VITE_KEYCLOAK_REALM` alinhado ao realm importado (`crash-game`).
+- Validado com `bun run --cwd frontend build` e `bun run --cwd frontend test`.
+
 ### Validação Atual
 
 ```bash
@@ -234,6 +243,7 @@ cd services/games && bun test tests/unit
 cd services/games && bun run tsc --noEmit
 cd services/games && bun test tests/e2e
 bun run --cwd frontend build
+bun run --cwd frontend test
 docker compose build frontend
 ```
 
