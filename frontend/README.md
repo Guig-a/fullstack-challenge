@@ -46,5 +46,10 @@ A tela `/game` usa TanStack Query para carregar:
 - `GET /wallets/me`
 - `GET /games/bets/me`
 
+Comandos de jogo:
+
+- `POST /games/bet` — corpo `{ "amountCents": "100" }` (string inteira)
+- `POST /games/bet/cashout` — sem corpo; usa a aposta ativa do jogador na rodada em execução
+
 As chamadas autenticadas reutilizam o token do `AuthProvider`, que atualiza o
 JWT antes de enviar o bearer token ao Kong.

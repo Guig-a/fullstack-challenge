@@ -1,13 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
+import { getApiErrorMessage } from "../api/apiErrorMessage";
+import type { BetResponse } from "../api/gameTypes";
 import { useAuthenticatedGameApi } from "../api/useAuthenticatedGameApi";
 import { useAuthenticatedWalletApi } from "../api/useAuthenticatedWalletApi";
 import { useAuth } from "../auth/AuthProvider";
 
 export function GamePage() {
+  const queryClient = useQueryClient();
   const auth = useAuth();
   const gameApi = useAuthenticatedGameApi();
   const walletApi = useAuthenticatedWalletApi();
+  const userId = auth.user?.id;
+
+  const [amountCentsInput, setAmountCentsInput] = useState("100");
+  const [commandError, setCommandError] = useState<string | null>(null);
+
   const userLabel = auth.user?.username ?? auth.user?.email ?? "jogador";
 
   const currentRoundQuery = useQuery({
@@ -18,7 +32,7 @@ export function GamePage() {
 
   const walletQuery = useQuery({
     queryKey: ["wallets", "me"],
-    queryFn: walletApi.getMyWallet,
+    queryFn: walletApi.ensureMyWallet,
   });
 
   const betHistoryQuery = useQuery({
@@ -30,6 +44,44 @@ export function GamePage() {
   const round = currentRoundQuery.data;
   const wallet = walletQuery.data;
   const betHistory = betHistoryQuery.data?.items ?? [];
+
+  const currentBet = useMemo(
+    () => findUserBetOnRound(round?.bets, userId, round?.id),
+    [round?.bets, round?.id, userId],
+  );
+
+  const amountValidationError = validateAmountCents(amountCentsInput);
+
+  const placeBetMutation = useMutation({
+    mutationFn: async () => {
+      const normalized = amountCentsInput.trim();
+      const validation = validateAmountCents(normalized);
+      if (validation) {
+        throw new Error(validation);
+      }
+
+      return gameApi.placeBet({ amountCents: normalized });
+    },
+    onSuccess: () => {
+      setCommandError(null);
+      void invalidateGameplayQueries(queryClient);
+    },
+    onError: (error: unknown) => {
+      setCommandError(getApiErrorMessage(error));
+    },
+  });
+
+  const cashOutMutation = useMutation({
+    mutationFn: gameApi.cashOut,
+    onSuccess: () => {
+      setCommandError(null);
+      void invalidateGameplayQueries(queryClient);
+    },
+    onError: (error: unknown) => {
+      setCommandError(getApiErrorMessage(error));
+    },
+  });
+
   const stats = [
     { label: "Rodada", value: round?.id.slice(0, 8) ?? "Carregando" },
     { label: "Status", value: round ? formatRoundStatus(round.status) : "..." },
@@ -41,6 +93,18 @@ export function GamePage() {
           : "Oculto",
     },
   ];
+
+  const canPlaceBet =
+    Boolean(round?.status === "betting") &&
+    !placeBetMutation.isPending &&
+    !amountValidationError;
+
+  const canCashOut =
+    Boolean(
+      round?.status === "running" &&
+        currentBet?.status === "placed" &&
+        !cashOutMutation.isPending,
+    );
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_22rem]">
@@ -63,6 +127,16 @@ export function GamePage() {
             {round ? formatRoundStatus(round.status) : "Sincronizando"}
           </span>
         </div>
+
+        {currentBet ? (
+          <p className="mt-4 rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+            Aposta nesta rodada:{" "}
+            <strong className="text-white">
+              {formatCents(currentBet.amountCents)}
+            </strong>{" "}
+            — {formatBetStatus(currentBet.status)}
+          </p>
+        ) : null}
 
         {currentRoundQuery.isError ? (
           <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-100">
@@ -107,26 +181,40 @@ export function GamePage() {
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
           <h3 className="text-xl font-semibold">Aposta</h3>
           <label className="mt-5 block text-sm text-slate-400" htmlFor="amount">
-            Valor em centavos
+            Valor em centavos (inteiro, ex.: 100 = R$ 1,00)
           </label>
           <input
             id="amount"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-lg font-semibold outline-none ring-emerald-400/40 transition focus:ring-4"
-            defaultValue="100"
             inputMode="numeric"
+            value={amountCentsInput}
+            onChange={(e) => {
+              setAmountCentsInput(e.target.value);
+              setCommandError(null);
+            }}
           />
+          {amountValidationError ? (
+            <p className="mt-2 text-xs text-amber-200">{amountValidationError}</p>
+          ) : null}
           <button
-            className="mt-5 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300"
+            className="mt-5 w-full rounded-2xl bg-emerald-400 px-4 py-3 font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canPlaceBet}
             type="button"
+            onClick={() => placeBetMutation.mutate()}
           >
-            Apostar
+            {placeBetMutation.isPending ? "Enviando..." : "Apostar"}
           </button>
           <button
-            className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 font-bold text-slate-100 transition hover:bg-white/10"
+            className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 font-bold text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canCashOut}
             type="button"
+            onClick={() => cashOutMutation.mutate()}
           >
-            Sacar
+            {cashOutMutation.isPending ? "Sacando..." : "Sacar"}
           </button>
+          {commandError ? (
+            <p className="mt-4 text-sm text-red-200">{commandError}</p>
+          ) : null}
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
@@ -168,6 +256,44 @@ export function GamePage() {
       </aside>
     </section>
   );
+}
+
+async function invalidateGameplayQueries(queryClient: QueryClient) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["games", "rounds", "current"] }),
+    queryClient.invalidateQueries({ queryKey: ["wallets", "me"] }),
+    queryClient.invalidateQueries({ queryKey: ["games", "bets", "me"] }),
+  ]);
+}
+
+function findUserBetOnRound(
+  bets: BetResponse[] | undefined,
+  userId: string | undefined,
+  roundId: string | undefined,
+): BetResponse | undefined {
+  if (!bets || !userId || !roundId) {
+    return undefined;
+  }
+
+  return bets.find((bet) => bet.userId === userId && bet.roundId === roundId);
+}
+
+function validateAmountCents(raw: string): string | null {
+  const trimmed = raw.trim();
+
+  if (trimmed === "") {
+    return "Informe um valor em centavos.";
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    return "Use apenas dígitos inteiros (sem vírgula ou ponto).";
+  }
+
+  if (trimmed === "0" || /^0+$/.test(trimmed)) {
+    return "O valor deve ser maior que zero.";
+  }
+
+  return null;
 }
 
 function formatRoundStatus(status: string) {

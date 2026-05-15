@@ -40,7 +40,6 @@ export type BetResponse = {
 
 export type PlaceBetRequest = {
   amountCents: string;
-  autoCashOutMultiplierBasisPoints?: string;
 };
 
 export type PlayerBetHistoryResponse = {

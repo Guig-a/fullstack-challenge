@@ -199,6 +199,15 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Adicionados estados explícitos de loading, vazio e erro para dados essenciais da experiência de jogo.
 - Validado com `bun run --cwd frontend build`.
 
+#### `feat(frontend): place bets and cash out via REST`
+
+- Conectados os botões de aposta e cashout a `POST /games/bet` e `POST /games/bet/cashout` com TanStack Query mutations e invalidação de rodada, carteira e histórico.
+- Validação local de `amountCents` como string só com dígitos, alinhada ao contrato do backend.
+- Exibição da aposta do jogador na rodada atual (incluindo `pending_debit`) e cashout habilitado apenas com rodada em execução e aposta `placed`.
+- Carteira garantida via `GET /wallets/me` com criação automática em caso de `404`, reduzindo atrito para novos logins.
+- Mensagens de erro derivadas das respostas NestJS (`message` string ou lista).
+- Validado com `bun run --cwd frontend build`.
+
 ### Validação Atual
 
 ```bash
