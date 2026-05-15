@@ -139,6 +139,12 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - A resposta usa `PlayerBetHistoryResponseDto` com `BetResponseDto`, preservando centavos, multiplicadores e payouts como string.
 - Adicionados testes unitários para o handler e serialização do histórico paginado.
 
+#### `fix(gateway): route game websocket through kong`
+
+- Ajustado o path interno do Socket.IO no Game Service para `/socket.io`.
+- Como o Kong usa `strip_path: true` na rota `/games`, o frontend deve conectar via gateway usando `/games/socket.io`; o Kong encaminha para `/socket.io` no serviço.
+- Mantida a separação entre API pública via Kong e detalhe interno do serviço para não quebrar as rotas REST existentes.
+
 ### Validação Atual
 
 ```bash
@@ -304,7 +310,7 @@ Todos os endpoints são acessados via **Kong** (`http://localhost:8000`).
 
 A conexão WebSocket é usada exclusivamente para **comunicação do servidor para o cliente** (push de eventos em tempo real). Todas as ações do jogador (apostar, sacar) são feitas via REST.
 
-No Game Service, o gateway Socket.IO fica exposto em `/games/socket.io` e emite os seguintes eventos:
+Via Kong, o gateway Socket.IO fica exposto em `/games/socket.io`. Internamente, o Game Service escuta em `/socket.io`, pois o Kong remove o prefixo `/games` antes de encaminhar a requisição. O servidor emite os seguintes eventos:
 
 - `round.created`: nova rodada de apostas disponível.
 - `round.started`: rodada entrou em execução e o multiplicador pode ser animado pelo frontend.

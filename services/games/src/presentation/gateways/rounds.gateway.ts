@@ -12,7 +12,7 @@ import { RoundResponseDto } from "../dtos/round-response.dto";
   cors: {
     origin: "*",
   },
-  path: "/games/socket.io",
+  path: "/socket.io",
 })
 export class RoundsGateway implements RoundRealtimePublisher, OnGatewayInit<Server> {
   private server?: Server;
