@@ -217,6 +217,13 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Variável opcional `VITE_GAMES_SOCKET_PATH` documentada em `.env.example`.
 - Validado com `bun run --cwd frontend build`.
 
+#### `feat(frontend): add docker image and compose service`
+
+- Criado `frontend/Dockerfile` com contexto na raiz do monorepo, `bun install` do workspace e `bun run build` com `ARG`/`ENV` para variáveis `VITE_*` (Kong, Keycloak e path do Socket.IO).
+- Serviço `frontend` habilitado no `docker-compose.yml` na porta **3000**, `vite preview` com host `0.0.0.0` e healthcheck HTTP.
+- Script `preview` do frontend fixado na porta 3000, alinhado ao realm Keycloak (`localhost:3000/*`).
+- Validado com `bun run --cwd frontend build` e `docker compose build frontend`.
+
 ### Validação Atual
 
 ```bash
@@ -227,6 +234,7 @@ cd services/games && bun test tests/unit
 cd services/games && bun run tsc --noEmit
 cd services/games && bun test tests/e2e
 bun run --cwd frontend build
+docker compose build frontend
 ```
 
 Para rodar o E2E completo com janelas determinísticas de cashout/crash:
@@ -496,13 +504,9 @@ Cada serviço tem:
 - `tests/unit/` e `tests/e2e/` prontos para receber os testes
 - `packages/` na raiz do monorepo para pacotes compartilhados entre serviços (ex: `@crash/eslint`)
 
-**Frontend — a implementar.** A pasta `frontend/` existe mas o scaffold é responsabilidade do candidato. Use o framework de sua preferência:
+**Frontend — implementado** em `frontend/` com Vite + React + TypeScript, Tailwind e TanStack Query. O serviço `frontend` no `docker-compose.yml` expõe `http://localhost:3000` (build estático + `vite preview`), com `Dockerfile` usando a raiz do monorepo como contexto, no mesmo padrão de Game/Wallet.
 
-- **Vite + React** — opção mais leve, ideal se quiser controle total
-- **Next.js** — SSR out-of-the-box, boa escolha para SEO e rotas
-- **TanStack Start** — preferido na stack da Jungle Gaming
-
-O placeholder no `docker-compose.yml` está comentado — descomente e adapte com seu `Dockerfile` e porta após criar o scaffold.
+Para desenvolvimento local sem Docker, prefira `bun run --cwd frontend dev` (porta `5173`, já permitida no Keycloak).
 
 ### Variáveis de ambiente
 

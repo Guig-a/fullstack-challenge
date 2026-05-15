@@ -23,6 +23,19 @@ Validar build:
 bun run --cwd frontend build
 ```
 
+### Docker
+
+Imagem de produção local (Compose): build na raiz do monorepo com `frontend/Dockerfile`,
+servindo `dist/` em `http://localhost:3000` via `vite preview`.
+
+```bash
+docker compose build frontend
+docker compose up -d frontend
+```
+
+Variáveis `VITE_*` são injetadas no **build** da imagem (`ARG` no Dockerfile / `build.args`
+no Compose). Para outro host de API em produção, reconstrua a imagem com os valores corretos.
+
 ## Ambiente
 
 Copie `.env.example` para `.env.local` quando precisar sobrescrever os valores
