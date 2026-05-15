@@ -1,15 +1,29 @@
-# frontend
+# Frontend
 
-To install dependencies:
+Aplicação web do desafio Crash Game, construída com Vite, React, TypeScript e
+Tailwind CSS.
+
+## Comandos
+
+Instalar dependências na raiz do monorepo:
 
 ```bash
 bun install
 ```
 
-To run:
+Rodar em modo desenvolvimento:
 
 ```bash
-bun run index.ts
+bun run --cwd frontend dev
 ```
 
-This project was created using `bun init` in bun v1.3.13. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+Validar build:
+
+```bash
+bun run --cwd frontend build
+```
+
+## Ambiente
+
+Copie `.env.example` para `.env.local` quando precisar sobrescrever os valores
+locais de Kong/Keycloak.

@@ -174,6 +174,14 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Para evitar flakiness sem falsificar a prova, o Game pode receber limites opcionais de crash point e gerar seeds até encontrar um HMAC dentro da faixa configurada.
 - Validado contra a stack real com `ROUND_MIN_CRASH_POINT_BASIS_POINTS=130`, `ROUND_MAX_CRASH_POINT_BASIS_POINTS=150` e `bun test services/games/tests/e2e`.
 
+#### `feat(frontend): scaffold crash game app`
+
+- Criado o scaffold web com Vite, React, TypeScript strict, React Router e Tailwind CSS v4.
+- Adicionado shell visual responsivo com rotas `/game` e `/login`, mantendo a UI preparada para autenticação Keycloak, apostas, cashout e histórico.
+- Centralizada a configuração de ambiente em `VITE_API_BASE_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM` e `VITE_KEYCLOAK_CLIENT_ID`.
+- Criada a primeira camada de API tipada para rodada atual, aposta, cashout e histórico do jogador, preservando centavos e multiplicadores como string.
+- Validado com `bun run --cwd frontend build`.
+
 ### Validação Atual
 
 ```bash
@@ -183,6 +191,7 @@ cd services/wallets && bun test tests/unit
 cd services/games && bun test tests/unit
 cd services/games && bun run tsc --noEmit
 cd services/games && bun test tests/e2e
+bun run --cwd frontend build
 ```
 
 Para rodar o E2E completo com janelas determinísticas de cashout/crash:
