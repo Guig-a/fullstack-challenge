@@ -13,7 +13,7 @@ export const gameApi = {
 
   placeBet(input: PlaceBetRequest, options?: ApiClientOptions) {
     return apiRequest<BetResponse>(
-      "/games/bets",
+      "/games/bet",
       {
         method: "POST",
         body: JSON.stringify(input),
@@ -22,9 +22,9 @@ export const gameApi = {
     );
   },
 
-  cashOut(betId: string, options?: ApiClientOptions) {
+  cashOut(options?: ApiClientOptions) {
     return apiRequest<BetResponse>(
-      `/games/bets/${betId}/cash-out`,
+      "/games/bet/cashout",
       {
         method: "POST",
       },

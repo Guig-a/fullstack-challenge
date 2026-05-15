@@ -11,14 +11,16 @@ export type RoundProofResponse = {
   serverSeedHash: string;
   clientSeed: string;
   nonce: number;
+  hmac?: string | null;
+  serverSeed?: string | null;
 };
 
 export type CurrentRoundResponse = {
   id: string;
   status: RoundStatus;
-  crashPointBasisPoints: string | null;
-  currentMultiplierBasisPoints: string;
+  crashPointBasisPoints: string;
   proof: RoundProofResponse;
+  bets: BetResponse[];
   createdAt: string;
   startedAt: string | null;
   crashedAt: string | null;
@@ -30,10 +32,10 @@ export type BetResponse = {
   userId: string;
   amountCents: string;
   status: BetStatus;
-  autoCashOutMultiplierBasisPoints: string | null;
-  cashedOutMultiplierBasisPoints: string | null;
+  cashoutMultiplierBasisPoints: string | null;
   payoutCents: string | null;
-  createdAt: string;
+  placedAt: string;
+  settledAt: string | null;
 };
 
 export type PlaceBetRequest = {

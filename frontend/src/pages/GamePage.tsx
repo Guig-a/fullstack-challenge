@@ -1,14 +1,46 @@
-import { useAuth } from "../auth/AuthProvider";
+import { useQuery } from "@tanstack/react-query";
 
-const stats = [
-  { label: "Rodada", value: "Aguardando sync" },
-  { label: "Multiplicador", value: "1.00x" },
-  { label: "Status", value: "Betting" },
-];
+import { useAuthenticatedGameApi } from "../api/useAuthenticatedGameApi";
+import { useAuthenticatedWalletApi } from "../api/useAuthenticatedWalletApi";
+import { useAuth } from "../auth/AuthProvider";
 
 export function GamePage() {
   const auth = useAuth();
+  const gameApi = useAuthenticatedGameApi();
+  const walletApi = useAuthenticatedWalletApi();
   const userLabel = auth.user?.username ?? auth.user?.email ?? "jogador";
+
+  const currentRoundQuery = useQuery({
+    queryKey: ["games", "rounds", "current"],
+    queryFn: gameApi.getCurrentRound,
+    refetchInterval: 2_000,
+  });
+
+  const walletQuery = useQuery({
+    queryKey: ["wallets", "me"],
+    queryFn: walletApi.getMyWallet,
+  });
+
+  const betHistoryQuery = useQuery({
+    queryKey: ["games", "bets", "me"],
+    queryFn: gameApi.getMyBetHistory,
+    refetchInterval: 5_000,
+  });
+
+  const round = currentRoundQuery.data;
+  const wallet = walletQuery.data;
+  const betHistory = betHistoryQuery.data?.items ?? [];
+  const stats = [
+    { label: "Rodada", value: round?.id.slice(0, 8) ?? "Carregando" },
+    { label: "Status", value: round ? formatRoundStatus(round.status) : "..." },
+    {
+      label: "Crash",
+      value:
+        round?.status === "crashed"
+          ? formatBasisPoints(round.crashPointBasisPoints)
+          : "Oculto",
+    },
+  ];
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_22rem]">
@@ -22,13 +54,21 @@ export function GamePage() {
               Sessão autenticada como {userLabel}
             </p>
             <h2 className="mt-3 text-5xl font-black tracking-tight md:text-7xl">
-              1.00x
+              {round?.status === "crashed"
+                ? formatBasisPoints(round.crashPointBasisPoints)
+                : "1.00x"}
             </h2>
           </div>
           <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-4 py-2 text-sm font-semibold text-emerald-200">
-            Betting open
+            {round ? formatRoundStatus(round.status) : "Sincronizando"}
           </span>
         </div>
+
+        {currentRoundQuery.isError ? (
+          <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-100">
+            Não foi possível carregar a rodada atual.
+          </div>
+        ) : null}
 
         <div className="mt-10 h-56 rounded-3xl border border-dashed border-emerald-300/30 bg-slate-900/80 p-6">
           <div className="flex h-full items-end">
@@ -52,6 +92,18 @@ export function GamePage() {
       </div>
 
       <aside className="space-y-6">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+          <p className="text-sm font-medium text-slate-400">Saldo</p>
+          <p className="mt-2 text-3xl font-black">
+            {wallet ? `R$ ${wallet.balance}` : "Carregando"}
+          </p>
+          {walletQuery.isError ? (
+            <p className="mt-3 text-sm text-red-200">
+              Não foi possível carregar a carteira.
+            </p>
+          ) : null}
+        </div>
+
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
           <h3 className="text-xl font-semibold">Aposta</h3>
           <label className="mt-5 block text-sm text-slate-400" htmlFor="amount">
@@ -79,12 +131,74 @@ export function GamePage() {
 
         <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
           <h3 className="text-xl font-semibold">Histórico</h3>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            O próximo incremento conectará esta área ao endpoint autenticado de
-            histórico de apostas e aos eventos WebSocket do backend.
-          </p>
+          {betHistoryQuery.isLoading ? (
+            <p className="mt-3 text-sm text-slate-400">Carregando apostas...</p>
+          ) : null}
+          {betHistoryQuery.isError ? (
+            <p className="mt-3 text-sm text-red-200">
+              Não foi possível carregar o histórico.
+            </p>
+          ) : null}
+          {!betHistoryQuery.isLoading && betHistory.length === 0 ? (
+            <p className="mt-3 text-sm leading-6 text-slate-400">
+              Nenhuma aposta encontrada para este jogador.
+            </p>
+          ) : null}
+          <div className="mt-4 space-y-3">
+            {betHistory.slice(0, 5).map((bet) => (
+              <div
+                key={bet.id}
+                className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold">
+                    {formatCents(bet.amountCents)}
+                  </span>
+                  <span className="text-slate-400">
+                    {formatBetStatus(bet.status)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  {new Date(bet.placedAt).toLocaleString("pt-BR")}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </aside>
     </section>
   );
+}
+
+function formatRoundStatus(status: string) {
+  const statuses: Record<string, string> = {
+    betting: "Apostas abertas",
+    running: "Rodando",
+    crashed: "Crash",
+  };
+
+  return statuses[status] ?? status;
+}
+
+function formatBetStatus(status: string) {
+  const statuses: Record<string, string> = {
+    pending_debit: "Débito pendente",
+    placed: "Confirmada",
+    cashed_out: "Cashout",
+    lost: "Perdida",
+    rejected: "Rejeitada",
+  };
+
+  return statuses[status] ?? status;
+}
+
+function formatBasisPoints(value: string) {
+  return `${(Number(value) / 100).toFixed(2)}x`;
+}
+
+function formatCents(value: string) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(value) / 100);
 }

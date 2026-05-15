@@ -190,6 +190,15 @@ Esta seção registra as decisões tomadas durante a implementação. A ideia é
 - Adicionado hook de API autenticada para reutilizar o bearer token nos endpoints REST do Game via Kong.
 - Validado com `bun run --cwd frontend build`.
 
+#### `feat(frontend): load gameplay data from REST`
+
+- Adicionado TanStack Query para gerenciar server state do frontend com cache curto, retry controlado e polling da rodada atual.
+- Conectada a tela `/game` aos endpoints autenticados de Wallet e Game para exibir saldo, rodada atual e histórico recente de apostas do jogador.
+- Criados tipos e cliente REST da Wallet, mantendo `balanceCents` como string e usando o valor decimal apenas para apresentação.
+- Corrigidos os paths do cliente Game para os endpoints reais `POST /games/bet` e `POST /games/bet/cashout`.
+- Adicionados estados explícitos de loading, vazio e erro para dados essenciais da experiência de jogo.
+- Validado com `bun run --cwd frontend build`.
+
 ### Validação Atual
 
 ```bash

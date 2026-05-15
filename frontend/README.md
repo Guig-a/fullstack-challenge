@@ -37,3 +37,14 @@ Variáveis usadas pelo app:
 
 Com a stack local em execução, acesse `/login` e entre com o usuário de teste do
 realm para liberar a rota `/game`.
+
+## Integração
+
+A tela `/game` usa TanStack Query para carregar:
+
+- `GET /games/rounds/current`
+- `GET /wallets/me`
+- `GET /games/bets/me`
+
+As chamadas autenticadas reutilizam o token do `AuthProvider`, que atualiza o
+JWT antes de enviar o bearer token ao Kong.

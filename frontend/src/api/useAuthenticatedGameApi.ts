@@ -17,7 +17,7 @@ export function useAuthenticatedGameApi() {
     getCurrentRound: async () => gameApi.getCurrentRound(await withToken()),
     placeBet: async (input: PlaceBetRequest) =>
       gameApi.placeBet(input, await withToken()),
-    cashOut: async (betId: string) => gameApi.cashOut(betId, await withToken()),
+    cashOut: async () => gameApi.cashOut(await withToken()),
     getMyBetHistory: async () => gameApi.getMyBetHistory(await withToken()),
   };
 }
